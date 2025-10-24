@@ -22,7 +22,7 @@ def sgn_norm(sgn: np.ndarray):
     return normalized_sgn
 
 
-def iq_to_ap(sgn: np.ndarray):
+def iq2ap(sgn: np.ndarray):
     i = sgn[:, 0, :]
     q = sgn[:, 1, :]
 
