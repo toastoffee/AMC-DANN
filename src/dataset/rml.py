@@ -19,9 +19,11 @@ rml201604c_path = Config.get("dataset_dir") + Config.get("rml201604c_mat")
 
 
 class RmlDataset(Dataset):
-    def __init__(self, dataset_path: str):
+    def __init__(self, dataset_path: str, dataset_name: str):
 
         dataset_dict = scio.loadmat(dataset_path)
+
+        self.dataset_name = dataset_name
 
         self.X = torch.from_numpy(dataset_dict['X']).float()
         self.X = datautils.sgn_norm(self.X)
@@ -33,7 +35,7 @@ class RmlDataset(Dataset):
         self.modulation = dataset_dict['modulation']
 
         self.class_num = len(np.unique(self.modulation))
-        self.sample_num = 220000
+        self.sample_num = self.X.shape[0]
 
     def __len__(self):
         return len(self.data)
@@ -45,12 +47,15 @@ class RmlDataset(Dataset):
 class DatasetHelper:
     @staticmethod
     def get_rml201610a() -> RmlDataset:
-        return RmlDataset(rml201610a_path)
+        return RmlDataset(rml201610a_path, "rml201610a")
 
     @staticmethod
     def get_rml201604c() -> RmlDataset:
-        return RmlDataset(rml201604c_path)
+        return RmlDataset(rml201604c_path, "rml201604c")
 
 
 if __name__ == "__main__":
-    dataset = RmlDataset(rml201610a_path)
+    rml2016a = DatasetHelper.get_rml201610a()
+    rml2016c = DatasetHelper.get_rml201604c()
+
+    i = 1
