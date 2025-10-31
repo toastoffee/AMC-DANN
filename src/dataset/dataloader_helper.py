@@ -15,7 +15,7 @@ class DataloaderHelper:
 
     @staticmethod
     def dataloader_10a(batch_size: int,
-                       train_ratio: float = 0.8):
+                       train_ratio: float = 0.6):
 
         DataloaderHelper.initialize_random_seed()
         rml201610a = RmlHelper.rml201610a()
