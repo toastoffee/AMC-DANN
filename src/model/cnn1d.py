@@ -11,22 +11,18 @@ class CNN1d(nn.Module):
                       kernel_size=3, padding=1, stride=1),
             nn.BatchNorm1d(32),
             nn.LeakyReLU(),
-            nn.Dropout(0.5),
             nn.Conv1d(in_channels=32, out_channels=64,
                       kernel_size=3, padding=1, stride=1),
             nn.BatchNorm1d(64),
             nn.LeakyReLU(),
-            nn.Dropout(0.5),
             nn.Conv1d(in_channels=64, out_channels=128,
                       kernel_size=3, padding=1, stride=1),
             nn.BatchNorm1d(128),
             nn.LeakyReLU(),
-            nn.Dropout(0.5),
             nn.Conv1d(in_channels=128, out_channels=256,
                       kernel_size=3, padding=1, stride=1),
             nn.BatchNorm1d(256),
-            nn.LeakyReLU(),
-            nn.Dropout(0.5))
+            nn.LeakyReLU())
 
         self.classifier = nn.Sequential(
             nn.Linear(in_features=32768, out_features=2048),

@@ -173,4 +173,4 @@ def train_and_evaluate(model:               nn.Module,
         if acc_val() > best_acc:
             best_acc = acc_val()
             print("new weight saved.")
-            torch.save(model.state_dict(), "../checkpoints/" + model_name + '.pth')
+            torch.save(model.state_dict(), model_name + '.pth')
