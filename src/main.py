@@ -1,7 +1,7 @@
 
-from dataset.rml import DatasetHelper
+from dataset.rml_dataset import RmlHelper
 
 
 if __name__ == "__main__":
 
-    dataset = DatasetHelper.get_rml201610a()
+    dataset = RmlHelper.rml201610a()

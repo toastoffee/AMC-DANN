@@ -38,24 +38,23 @@ class RmlDataset(Dataset):
         self.sample_num = self.X.shape[0]
 
     def __len__(self):
-        return len(self.data)
+        return len(self.X)
 
     def __getitem__(self, item):
-        return self.data[item], self.labels[item], self.snr[item]
+        return self.X[item], self.Y[item], self.snr[item]
 
 
-class DatasetHelper:
+class RmlHelper:
+
     @staticmethod
-    def get_rml201610a() -> RmlDataset:
+    def rml201610a() -> RmlDataset:
         return RmlDataset(rml201610a_path, "rml201610a")
 
     @staticmethod
-    def get_rml201604c() -> RmlDataset:
+    def rml201604c() -> RmlDataset:
         return RmlDataset(rml201604c_path, "rml201604c")
 
 
 if __name__ == "__main__":
-    rml2016a = DatasetHelper.get_rml201610a()
-    rml2016c = DatasetHelper.get_rml201604c()
-
-    i = 1
+    rml2016a = RmlHelper.rml201610a()
+    rml2016c = RmlHelper.rml201604c()
