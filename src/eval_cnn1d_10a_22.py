@@ -24,7 +24,7 @@ def run_train():
     model = CNN1d().to(device)
     model.load_state_dict(torch.load('cnn1d_10a_all.pth'))
 
-    evaluate(model, valid_loader, criterion_ce, device, "[cnn1d_22_all]")
+    evaluate(model, valid_loader, criterion_ce, device, "[cnn1d_10a_on_22]")
 
 
 if __name__ == "__main__":

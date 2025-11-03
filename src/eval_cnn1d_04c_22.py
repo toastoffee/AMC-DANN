@@ -17,14 +17,14 @@ def run_train():
     device: torch.device = get_device()
 
     batch_size = 512
-    valid_loader, _ = DataloaderHelper.dataloader_04c(batch_size, 1.0)
+    valid_loader, _ = DataloaderHelper.dataloader_22(batch_size, 1.0)
 
     criterion_ce = nn.CrossEntropyLoss()
 
     model = CNN1d().to(device)
-    model.load_state_dict(torch.load('cnn1d_10a_all.pth'))
+    model.load_state_dict(torch.load('cnn1d_04c_all.pth'))
 
-    evaluate(model, valid_loader, criterion_ce, device, "[cnn1d_10a_on_04c]")
+    evaluate(model, valid_loader, criterion_ce, device, "[cnn1d_04c_on_22]")
 
 
 if __name__ == "__main__":
