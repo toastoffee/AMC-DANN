@@ -67,4 +67,5 @@ def convert_rml_ver2(pickle_path: str):
 
 if __name__ == "__main__":
     # convert_rml_ver2("/Users/toastoffee/Documents/Datasets/RML2016.10a_dict.pkl")
-    convert_rml_ver2("/Users/toastoffee/Documents/Datasets/2016.04C.multisnr.pkl")
+    # convert_rml_ver2("/Users/toastoffee/Documents/Datasets/2016.04C.multisnr.pkl")
+    convert_rml_ver2("/Users/toastoffee/Documents/Datasets/RML22.01A.pkl")

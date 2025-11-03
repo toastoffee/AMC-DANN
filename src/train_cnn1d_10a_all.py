@@ -13,7 +13,6 @@ warnings.filterwarnings('ignore')
 
 
 def run_train():
-    current_dir = os.path.dirname(os.path.abspath(__file__))
 
     device: torch.device = get_device()
 
@@ -26,7 +25,7 @@ def run_train():
 
     optimizer: optim.Optimizer = optim.Adam(params=model.parameters(), lr=1e-3, weight_decay=5e-3)
 
-    train_and_evaluate(model, train_loader, train_loader, optimizer, criterion_ce, device, 50, "cnn1d_10a_all")
+    train_and_evaluate(model, train_loader, valid_loader, optimizer, criterion_ce, device, 50, "cnn1d_10a_all")
 
 
 if __name__ == "__main__":

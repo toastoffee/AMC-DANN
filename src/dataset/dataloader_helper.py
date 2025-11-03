@@ -14,18 +14,17 @@ class DataloaderHelper:
         np.random.seed(seed)
 
     @staticmethod
-    def dataloader_10a(batch_size: int,
-                       train_ratio: float = 0.8):
-
+    def dataloader_train_valid_split(dataset: Dataset,
+                                     batch_size: int,
+                                     train_ratio: float = 0.6):
         DataloaderHelper.initialize_random_seed()
-        rml201610a = RmlHelper.rml201610a()
 
-        n_examples = rml201610a.sample_num
+        n_examples = dataset.sample_num
         n_train = int(train_ratio * n_examples)
         n_valid = n_examples - n_train
         lengths = [n_train, n_valid]
 
-        train_subset, valid_subset = torch.utils.data.random_split(rml201610a, lengths)
+        train_subset, valid_subset = torch.utils.data.random_split(dataset, lengths)
 
         train_loader_all = DataLoader(dataset=train_subset, batch_size=batch_size, shuffle=True)
         valid_loader_all = DataLoader(dataset=valid_subset, batch_size=batch_size)
@@ -33,21 +32,32 @@ class DataloaderHelper:
         return train_loader_all, valid_loader_all
 
     @staticmethod
+    def dataloader_10a(batch_size: int,
+                       train_ratio: float = 0.6):
+
+        train_loader_all, valid_loader_all = DataloaderHelper.dataloader_train_valid_split(
+            RmlHelper.rml201610a(), batch_size, train_ratio
+        )
+
+        return train_loader_all, valid_loader_all
+
+    @staticmethod
     def dataloader_04c(batch_size: int,
-                       train_ratio: float = 0.8):
+                       train_ratio: float = 0.6):
 
-        DataloaderHelper.initialize_random_seed()
-        rml201604a = RmlHelper.rml201604c()
+        train_loader_all, valid_loader_all = DataloaderHelper.dataloader_train_valid_split(
+            RmlHelper.rml201604c(), batch_size, train_ratio
+        )
 
-        n_examples = rml201604a.sample_num
-        n_train = int(train_ratio * n_examples)
-        n_valid = n_examples - n_train
-        lengths = [n_train, n_valid]
+        return train_loader_all, valid_loader_all
 
-        train_subset, valid_subset = torch.utils.data.random_split(rml201604a, lengths)
+    @staticmethod
+    def dataloader_22(batch_size: int,
+                      train_ratio: float = 0.6):
 
-        train_loader_all = DataLoader(dataset=train_subset, batch_size=batch_size, shuffle=True)
-        valid_loader_all = DataLoader(dataset=valid_subset, batch_size=batch_size)
+        train_loader_all, valid_loader_all = DataloaderHelper.dataloader_train_valid_split(
+            RmlHelper.rml22(), batch_size, train_ratio
+        )
 
         return train_loader_all, valid_loader_all
 

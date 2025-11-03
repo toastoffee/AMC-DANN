@@ -16,17 +16,20 @@ from configuration import Config
 
 rml201610a_path = Config.get("dataset_dir") + Config.get("rml201610a_mat")
 rml201604c_path = Config.get("dataset_dir") + Config.get("rml201604c_mat")
-
+rml22_path = Config.get("dataset_dir") + Config.get("rml22_mat")
 
 class RmlDataset(Dataset):
-    def __init__(self, dataset_path: str, dataset_name: str):
+    def __init__(self, dataset_path: str, dataset_name: str,
+                 normalized: bool = True):
 
         dataset_dict = scio.loadmat(dataset_path)
 
         self.dataset_name = dataset_name
 
         self.X = torch.from_numpy(dataset_dict['X']).float()
-        self.X = datautils.sgn_norm(self.X)
+
+        if normalized:
+            self.X = datautils.sgn_norm(self.X)
 
         self.Y = torch.from_numpy(dataset_dict['Y']).squeeze().t().long()
 
@@ -54,7 +57,12 @@ class RmlHelper:
     def rml201604c() -> RmlDataset:
         return RmlDataset(rml201604c_path, "rml201604c")
 
+    @staticmethod
+    def rml22() -> RmlDataset:
+        return RmlDataset(rml22_path, "rml22")
+
 
 if __name__ == "__main__":
-    rml2016a = RmlHelper.rml201610a()
-    rml2016c = RmlHelper.rml201604c()
+    # rml2016a = RmlHelper.rml201610a()
+    # rml2016c = RmlHelper.rml201604c()
+    rml22 = RmlHelper.rml22()
