@@ -1,9 +1,10 @@
 import torch
 from torch import nn
+from modelutils import GradientReversalFunction
 
 
 class DANN(nn.Module):
-    def __init__(self):
+    def __init__(self, grl_alpha=1.0):
         super(DANN, self).__init__()
 
         self.feature_extractor = nn.Sequential(
@@ -11,22 +12,18 @@ class DANN(nn.Module):
                       kernel_size=3, padding=1, stride=1),
             nn.BatchNorm1d(32),
             nn.LeakyReLU(),
-            nn.Dropout(0.5),
             nn.Conv1d(in_channels=32, out_channels=64,
                       kernel_size=3, padding=1, stride=1),
             nn.BatchNorm1d(64),
             nn.LeakyReLU(),
-            nn.Dropout(0.5),
             nn.Conv1d(in_channels=64, out_channels=128,
                       kernel_size=3, padding=1, stride=1),
             nn.BatchNorm1d(128),
             nn.LeakyReLU(),
-            nn.Dropout(0.5),
             nn.Conv1d(in_channels=128, out_channels=256,
                       kernel_size=3, padding=1, stride=1),
             nn.BatchNorm1d(256),
-            nn.LeakyReLU(),
-            nn.Dropout(0.5))
+            nn.LeakyReLU())
 
         self.classifier = nn.Sequential(
             nn.Linear(in_features=32768, out_features=2048),
@@ -38,7 +35,15 @@ class DANN(nn.Module):
             nn.Linear(in_features=1024, out_features=256),
             nn.LeakyReLU(),
             nn.Dropout(0.6),
-            nn.Linear(in_features=256, out_features=11))
+            nn.Linear(in_features=256, out_features=11),
+            nn.Softmax(dim=1))
+
+        self.domain_classifier = nn.Sequential(
+            nn.Linear(in_features=32768, out_features=2048),
+            nn.LeakyReLU(),
+            nn.Dropout(0.6),
+            nn.Linear(in_features=2048, out_features=2),
+            nn.Softmax(dim=1))
 
         for m in self.modules():
             if isinstance(m, nn.Conv1d):
@@ -46,13 +51,29 @@ class DANN(nn.Module):
             elif isinstance(m, nn.Linear):
                 nn.init.xavier_normal_(m.weight)
 
-    def forward(self, x):
+    def forward(self, x, alpha: float):
         feature = self.feature_extractor(x)
         feature = feature.view(feature.size(0), -1)
 
-        logits = self.classifier(feature)
+        reversed_features = GradientReversalFunction.apply(feature, alpha)
 
-        return logits, feature
+        # class classification
+        class_logits = self.classifier(feature)
+        # domain classification
+        domain_logits = self.domain_classifier(reversed_features)
+
+        return class_logits, domain_logits
+
+
+class dann_wrapper(nn.Module):
+    def __init__(self, dann):
+        super(dann_wrapper, self).__init__()
+
+        self.dann = dann
+
+    def forward(self, x):
+        class_logits, _ = self.dann(x, 1.0)
+        return class_logits
 
 
 if __name__ == "__main__":
@@ -60,6 +81,6 @@ if __name__ == "__main__":
 
     net = DANN()
 
-    sgn, _ = net(sgn)
+    sgn, _ = net(sgn, 1.0)
 
     print(sgn.shape)

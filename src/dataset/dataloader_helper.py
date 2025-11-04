@@ -32,31 +32,37 @@ class DataloaderHelper:
         return train_loader_all, valid_loader_all
 
     @staticmethod
-    def dataloader_10a(batch_size: int,
-                       train_ratio: float = 0.6):
+    def dataloader_10a(batch_size:       int,
+                       train_ratio:      float = 0.6,
+                       has_domain_label: bool = False,
+                       domain_label:     int = 0):
 
         train_loader_all, valid_loader_all = DataloaderHelper.dataloader_train_valid_split(
-            RmlHelper.rml201610a(), batch_size, train_ratio
+            RmlHelper.rml201610a(has_domain_label, domain_label), batch_size, train_ratio
         )
 
         return train_loader_all, valid_loader_all
 
     @staticmethod
-    def dataloader_04c(batch_size: int,
-                       train_ratio: float = 0.6):
+    def dataloader_04c(batch_size:       int,
+                       train_ratio:      float = 0.6,
+                       has_domain_label: bool = False,
+                       domain_label:     int = 0):
 
         train_loader_all, valid_loader_all = DataloaderHelper.dataloader_train_valid_split(
-            RmlHelper.rml201604c(), batch_size, train_ratio
+            RmlHelper.rml201604c(has_domain_label, domain_label), batch_size, train_ratio
         )
 
         return train_loader_all, valid_loader_all
 
     @staticmethod
-    def dataloader_22(batch_size: int,
-                      train_ratio: float = 0.6):
+    def dataloader_22(batch_size:       int,
+                      train_ratio:      float = 0.6,
+                      has_domain_label: bool = False,
+                      domain_label:     int = 0):
 
         train_loader_all, valid_loader_all = DataloaderHelper.dataloader_train_valid_split(
-            RmlHelper.rml22(), batch_size, train_ratio
+            RmlHelper.rml22(has_domain_label, domain_label), batch_size, train_ratio
         )
 
         return train_loader_all, valid_loader_all

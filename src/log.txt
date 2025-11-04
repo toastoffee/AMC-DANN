@@ -1,2 +1,8 @@
 start training: cnn1d
 start training: cnn1d
+start training: cnn1d_10a_all
+start training: dann_10a_22
+start training: dann_10a_22
+start training: dann_10a_22
+start training: dann_10a_22
+start training: dann_10a_22

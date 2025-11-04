@@ -14,10 +14,10 @@ class GradientReversalFunction(Function):
         return output, None
 
 
-class GradientReversal(nn.Module):
-    def __init__(self, alpha=1.0):
-        super(GradientReversal, self).__init__()
-        self.alpha = alpha
-
-    def forward(self, x):
-        return GradientReversalFunction.apply(x, self.alpha)
+# class GradientReversal(nn.Module):
+#     def __init__(self, alpha=1.0):
+#         super(GradientReversal, self).__init__()
+#         self.alpha = alpha
+#
+#     def forward(self, x):
+#         return GradientReversalFunction.apply(x, self.alpha)
