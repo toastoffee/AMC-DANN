@@ -14,9 +14,8 @@ class DataloaderHelper:
         np.random.seed(seed)
 
     @staticmethod
-    def dataloader_train_valid_split(dataset: Dataset,
-                                     batch_size: int,
-                                     train_ratio: float = 0.6):
+    def dataset_random_split(dataset: Dataset,
+                             train_ratio:   float):
         DataloaderHelper.initialize_random_seed()
 
         n_examples = dataset.sample_num
@@ -25,6 +24,13 @@ class DataloaderHelper:
         lengths = [n_train, n_valid]
 
         train_subset, valid_subset = torch.utils.data.random_split(dataset, lengths)
+        return train_subset, valid_subset
+
+    @staticmethod
+    def dataloader_train_valid_split(dataset: Dataset,
+                                     batch_size: int,
+                                     train_ratio: float = 0.6):
+        train_subset, valid_subset = DataloaderHelper.dataset_random_split(dataset, train_ratio)
 
         train_loader_all = DataLoader(dataset=train_subset, batch_size=batch_size, shuffle=True)
         valid_loader_all = DataLoader(dataset=valid_subset, batch_size=batch_size)
