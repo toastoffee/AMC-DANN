@@ -2,9 +2,8 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 import scipy.io as scio
-import torch.nn.functional as F
 
-import datautils
+import data_utils
 from configuration import Config
 
 
@@ -30,7 +29,7 @@ class RmlDataset(Dataset):
         self.X = torch.from_numpy(dataset_dict['X']).float()
 
         if normalized:
-            self.X = datautils.sgn_norm(self.X)
+            self.X = datautils.signals_normalize(self.X)
 
         self.Y = torch.from_numpy(dataset_dict['Y']).squeeze().t().long()
 

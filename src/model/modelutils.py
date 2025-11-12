@@ -1,4 +1,3 @@
-import torch.nn as nn
 from torch.autograd import Function
 
 
@@ -13,11 +12,3 @@ class GradientReversalFunction(Function):
         output = grad_output.neg() * ctx.alpha
         return output, None
 
-
-# class GradientReversal(nn.Module):
-#     def __init__(self, alpha=1.0):
-#         super(GradientReversal, self).__init__()
-#         self.alpha = alpha
-#
-#     def forward(self, x):
-#         return GradientReversalFunction.apply(x, self.alpha)
