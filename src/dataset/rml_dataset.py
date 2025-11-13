@@ -29,7 +29,7 @@ class RmlDataset(Dataset):
         self.X = torch.from_numpy(dataset_dict['X']).float()
 
         if normalized:
-            self.X = datautils.signals_normalize(self.X)
+            self.X = data_utils.signals_normalize(self.X)
 
         self.Y = torch.from_numpy(dataset_dict['Y']).squeeze().t().long()
 

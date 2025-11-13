@@ -2,22 +2,8 @@ from torch.utils.data import Dataset, DataLoader
 import torch
 
 import dataset_utils
+from rml_dataset import RmlHelper
 
-
-# class FadaDataloaderHelper:
-#     @staticmethod
-#     def dataloader_fada(shot:           int,
-#                         train_ratio:    float = 0.6):
-#
-#         source_dataset = RmlHelper.rml201610a()
-#         target_dataset = RmlHelper.rml22()
-#
-#         source_train_dataset, source_valid_dataset = DataloaderHelper.dataset_random_split(source_dataset, train_ratio)
-#         target_train_dataset, target_valid_dataset = DataloaderHelper.dataset_random_split(target_dataset, train_ratio)
-#
-#         target_labeled_subset = FadaDataloaderHelper.get_labeled_samples(target_train_dataset, 1)
-#
-#
 
 class FadaDataloader:
 
@@ -42,7 +28,14 @@ class FadaDataloader:
         self.batch_size = batch_size
         self.source_train_subset, self.source_valid_subset = dataset_utils.dataset_random_split(source_dataset, self.split_ratio, seed)
         self.target_train_subset, self.target_valid_subset = dataset_utils.dataset_random_split(target_dataset, self.split_ratio, seed)
-        self.target_labeled_subset = dataset_utils.get_few_shots(self.target_train_subset, self.shots, seed)
+
+        self.target_train_labeled_subset = dataset_utils.get_few_shots(self.target_train_subset, shots, seed)
+        source_train_items = [self.source_train_subset[i] for i in range(len(self.source_train_subset))]
+        target_train_labeled_items = [self.target_train_labeled_subset[i] for i in range(len(self.target_train_labeled_subset))]
+        self.X_s = torch.tensor([item[0] for item in source_train_items])
+        self.Y_s = torch.tensor([item[1] for item in source_train_items])
+        self.X_t = torch.tensor([item[0] for item in target_train_labeled_items])
+        self.Y_t = torch.tensor([item[1] for item in target_train_labeled_items])
 
     def create_pair_groups(self, seed: int):
         """
@@ -54,10 +47,70 @@ class FadaDataloader:
         :param seed: random seed
         :return: group of pairs, and labels
         """
-        source_labeled_subset = dataset_utils.get_few_shots(self.source_train_subset, self.shots * 2, seed)
+        dataset_utils.set_seeds(seed)
 
+        n = self.X_t.shape[0]   # class_num * shots
 
+        # shuffle order
+        classes = torch.unique(self.Y_t)
+        classes = classes[torch.randperm(len(classes))]
+
+        class_num = classes.shape[0]
+
+        def s_rand_indices(c):
+            idx = torch.nonzero(self.Y_s.eq(c))
+            return idx[torch.randperm(len(idx))][:self.shots * 2].squeeze()
+
+        def t_indices(c):
+            return torch.nonzero(self.Y_t.eq(int(c)))[:self.shots].squeeze()
+
+        source_idxs = list(map(s_rand_indices, classes))  # [10, 2*shot]
+        target_idxs = list(map(t_indices, classes))   # [10, shot]
+
+        source_matrix = torch.stack(source_idxs)   # [10, 2*shot]
+        target_matrix = torch.stack(target_idxs)    # [10, shot]
+
+        # 初始化四组样本对和对应的标签对
+        G1, G2, G3, G4 = [], [], [], []
+        Y1, Y2, Y3, Y4 = [], [], [], []
+
+        for i in range(class_num):
+            for j in range(self.shots):
+
+                # G1: 同域同类样本对（源域-源域，相同类别）
+                # 从源域的第i个类别中取第j*2和j*2+1个样本组成一对
+                G1.append((self.X_s[source_matrix[i][j * 2]], self.X_s[source_matrix[i][j * 2 + 1]]))
+                Y1.append((self.Y_s[source_matrix[i][j * 2]], self.Y_s[source_matrix[i][j * 2 + 1]]))
+
+                # G2: 异域同类样本对（源域-目标域，相同类别）
+                # 源域第i类第j个样本 + 目标域第i类第j个样本
+                G2.append((self.X_s[source_matrix[i][j]], self.X_t[target_matrix[i][j]]))
+                Y2.append((self.Y_s[source_matrix[i][j]], self.Y_t[target_matrix[i][j]]))
+
+                # G3: 同域异类样本对（源域-源域，不同类别）
+                # 源域第i类第j个样本 + 源域第(i+1)%10类第j个样本
+                G3.append((self.X_s[source_matrix[i % class_num][j]], self.X_s[source_matrix[(i + 1) % class_num][j]]))
+                Y3.append((self.Y_s[source_matrix[i % class_num][j]], self.Y_s[source_matrix[(i + 1) % class_num][j]]))
+
+                # G4: 异域异类样本对（源域-目标域，不同类别）
+                # 源域第i类第j个样本 + 目标域第(i+1)%10类第j个样本
+                G4.append((self.X_s[source_matrix[i % class_num][j]], self.X_t[target_matrix[(i + 1) % class_num][j]]))
+                Y4.append((self.Y_s[source_matrix[i % class_num][j]], self.Y_t[target_matrix[(i + 1) % class_num][j]]))
+
+        # 组合四组样本对和标签对
+        groups = [G1, G2, G3, G4]
+        groups_y = [Y1, Y2, Y3, Y4]
+
+        # 验证每组样本对数量是否一致（都等于n）
+        for g in groups:
+            assert (len(g) == n)
+
+        return groups, groups_y
 
 
 if __name__ == "__main__":
-    # FadaDataloaderHelper.dataloader_fada(1, 0.6)
+    s_ds = RmlHelper.rml201610a()
+    t_ds = RmlHelper.rml22()
+
+    loader = FadaDataloader(s_ds, t_ds, 0.6, 256, 2, 1)
+    loader.create_pair_groups(2)

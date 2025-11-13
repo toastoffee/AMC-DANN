@@ -13,7 +13,7 @@ def set_seeds(seed: int):
     """
     random.seed(seed)
     torch.manual_seed(seed)
-    torch.cuda.random(seed)
+    torch.cuda.manual_seed(seed)
     np.random.seed(seed)
 
 
@@ -65,30 +65,30 @@ def shuffle_dataset(dataset: Dataset,
     return Subset(dataset, indices)
 
 
-# def get_few_shots(dataset: Dataset,
-#                   shot:    int,
-#                   seed:    int) -> Subset:
-#     """
-#     get random samples, shot for each class
-#     :param dataset: dataset pick from
-#     :param shot: sample count of each class
-#     :param seed: random seed
-#     :return: subset of few shots
-#     """
-#     set_seeds(seed)
-#
-#     class_indices = defaultdict(list)
-#     for idx in range(len(dataset)):
-#         _, label, _ = dataset[idx]
-#         label = int(label)
-#         class_indices[label].append(idx)
-#
-#     selected_indices = []
-#     for cls, indices in class_indices.items():
-#         # 确保每个类别都采样shot个样本
-#         cls_selected = random.sample(indices, shot)
-#         selected_indices.extend(cls_selected)
-#
-#     assert len(selected_indices) == len(class_indices) * shot
-#
-#     return Subset(dataset, selected_indices)
+def get_few_shots(dataset: Dataset,
+                  shot:    int,
+                  seed:    int) -> Subset:
+    """
+    get random samples, shot for each class
+    :param dataset: dataset pick from
+    :param shot: sample count of each class
+    :param seed: random seed
+    :return: subset of few shots
+    """
+    set_seeds(seed)
+
+    class_indices = defaultdict(list)
+    for idx in range(len(dataset)):
+        _, label, _ = dataset[idx]
+        label = int(label)
+        class_indices[label].append(idx)
+
+    selected_indices = []
+    for cls, indices in class_indices.items():
+        # 确保每个类别都采样shot个样本
+        cls_selected = random.sample(indices, shot)
+        selected_indices.extend(cls_selected)
+
+    assert len(selected_indices) == len(class_indices) * shot
+
+    return Subset(dataset, selected_indices)
