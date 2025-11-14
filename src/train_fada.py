@@ -30,15 +30,16 @@ def train(model:        fada.FADA,
     source_valid_dataloader = DataLoader(dataset=fada_dataset.source_valid_subset, batch_size=batch_size)
     loss_ce = torch.nn.CrossEntropyLoss()
 
-    optimizer = torch.optim.AdamW(list(model.feature_extractor.parameters()) + list(model.classifier.parameters()),
-                                  lr=1e-3)
+    # optimizer = torch.optim.Adam(list(model.feature_extractor.parameters()) + list(model.classifier.parameters()),
+    #                               lr=1e-3)
+    optimizer: optim.Optimizer = optim.Adam(params=model.parameters(), lr=1e-3, weight_decay=5e-3)
 
     for epoch in range(epochs_1):
         for batch_idx, (samples, labels, snr) in enumerate(source_train_dataloader):
             samples, labels = samples.to(device, dtype=torch.float32), labels.to(device)
 
             class_logits = model(samples)
-            loss = loss_ce(class_logits, labels)
+            loss = loss_ce(class_logits.float(), labels.long())
 
             optimizer.zero_grad()
             loss.backward()
@@ -88,7 +89,7 @@ def train(model:        fada.FADA,
                 ground_truths = ground_truths.to(device)
 
                 optimizer_D.zero_grad()
-                X_cat = torch.cat([model.feature_extractor(X1), model.feature_extractor(X2)], 1)
+                X_cat = torch.cat([model.encoder(X1), model.encoder(X2)], 1)
                 X_cat = X_cat.detach()
 
                 dcd_pred = model.DCD(X_cat)
@@ -159,8 +160,8 @@ def train(model:        fada.FADA,
 
                 optimizer_g_h.zero_grad()
 
-                encoder_X1 = model.feature_extractor(X1)
-                encoder_X2 = model.feature_extractor(X2)
+                encoder_X1 = model.encoder(X1)
+                encoder_X2 = model.encoder(X2)
 
                 X_cat = torch.cat([encoder_X1, encoder_X2], 1)
                 y_pred_X1 = model.classifier(encoder_X1)
@@ -204,7 +205,7 @@ def train(model:        fada.FADA,
                 ground_truths = ground_truths.to(device)
 
                 optimizer_d.zero_grad()
-                X_cat = torch.cat([model.feature_extractor(X1), model.feature_extractor(X2)], 1)
+                X_cat = torch.cat([model.encoder(X1), model.encoder(X2)], 1)
                 y_pred = model.DCD(X_cat.detach())
                 loss = loss_ce(y_pred, ground_truths)
                 loss.backward()
@@ -216,10 +217,10 @@ def train(model:        fada.FADA,
 
         # testing
         acc = 0
-        for data, labels in target_valid_dataloader:
+        for data, labels, snr in target_valid_dataloader:
             data = data.to(device)
             labels = labels.to(device)
-            y_test_pred = model.classifier(model.feature_extractor(data))
+            y_test_pred = model.classifier(model.encoder(data))
             acc += (torch.max(y_test_pred, 1)[1] == labels).float().mean().item()
 
         accuracy = round(acc / float(len(target_valid_dataloader)), 3)

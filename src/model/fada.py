@@ -51,13 +51,15 @@ class FADA(nn.Module):
             elif isinstance(m, nn.Linear):
                 nn.init.xavier_normal_(m.weight)
 
+    def encoder(self, x):
+        feature = self.feature_extractor(x)
+        feature = feature.view(feature.size(0), -1)
+        return feature
+
     def forward(self, x):
         feature = self.feature_extractor(x)
         feature = feature.view(feature.size(0), -1)
 
-        # reversed_features = GradientReversalFunction.apply(feature, alpha)
-
-        # class classification
         class_logits = self.classifier(feature)
 
         return class_logits
@@ -79,6 +81,6 @@ if __name__ == "__main__":
 
     net = FADA()
 
-    sgn, _ = net(sgn, 1.0)
+    fea = net.encoder(sgn)
 
-    print(sgn.shape)
+    print(fea.shape)
