@@ -5,13 +5,12 @@ import dataset_utils
 from rml_dataset import RmlHelper
 
 
-class FadaDataloader:
+class FadaDataset:
 
     def __init__(self,
                  source_dataset: Dataset,
                  target_dataset: Dataset,
                  train_ratio:    float,
-                 batch_size:     int,
                  shots:          int,
                  seed:           int):
         """
@@ -19,13 +18,11 @@ class FadaDataloader:
         :param source_dataset: dataset of source domain
         :param target_dataset: dataset of target domain
         :param train_ratio: train ratio of the datasets
-        :param batch_size: batch size
         :param shots: sample count of each class
         :param seed: random seed
         """
         self.shots = shots
         self.split_ratio = [train_ratio, 1.0 - train_ratio]
-        self.batch_size = batch_size
         self.source_train_subset, self.source_valid_subset = dataset_utils.dataset_random_split(source_dataset, self.split_ratio, seed)
         self.target_train_subset, self.target_valid_subset = dataset_utils.dataset_random_split(target_dataset, self.split_ratio, seed)
 
@@ -112,5 +109,5 @@ if __name__ == "__main__":
     s_ds = RmlHelper.rml201610a()
     t_ds = RmlHelper.rml22()
 
-    loader = FadaDataloader(s_ds, t_ds, 0.6, 256, 2, 1)
+    loader = FadaDataset(s_ds, t_ds, 0.6, 256, 2, 1)
     loader.create_pair_groups(2)

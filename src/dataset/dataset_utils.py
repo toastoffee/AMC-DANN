@@ -12,9 +12,9 @@ def set_seeds(seed: int):
     :return: void
     """
     random.seed(seed)
+    np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
-    np.random.seed(seed)
 
 
 def dataset_random_split(dataset: Dataset,
