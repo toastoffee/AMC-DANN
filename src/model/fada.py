@@ -65,17 +65,6 @@ class FADA(nn.Module):
         return class_logits
 
 
-# class dann_wrapper(nn.Module):
-#     def __init__(self, dann):
-#         super(dann_wrapper, self).__init__()
-#
-#         self.dann = dann
-#
-#     def forward(self, x):
-#         class_logits, _ = self.dann(x, 1.0)
-#         return class_logits
-
-
 if __name__ == "__main__":
     sgn = torch.randn((64, 2, 128))
 

@@ -61,11 +61,14 @@ class FadaDataset:
         def t_indices(c):
             return torch.nonzero(self.Y_t.eq(int(c)))[:self.shots].squeeze()
 
-        source_idxs = list(map(s_rand_indices, classes))  # [10, 2*shot]
-        target_idxs = list(map(t_indices, classes))   # [10, shot]
+        source_idxs = list(map(s_rand_indices, classes))  # [11, 2*shot]
+        target_idxs = list(map(t_indices, classes))   # [11, shot]
 
-        source_matrix = torch.stack(source_idxs)   # [10, 2*shot]
-        target_matrix = torch.stack(target_idxs)    # [10, shot]
+        source_matrix = torch.stack(source_idxs)   # [11, 2*shot]
+        target_matrix = torch.stack(target_idxs)    # [11, shot]
+
+        if target_matrix.shape == torch.Size([11]):
+            target_matrix = target_matrix.reshape(11, 1)
 
         # 初始化四组样本对和对应的标签对
         G1, G2, G3, G4 = [], [], [], []

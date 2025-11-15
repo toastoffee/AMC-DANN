@@ -9,13 +9,15 @@ from dataset import dataset_utils
 from dataset import rml_dataset
 from model import fada
 from train.device_utils import get_device
+from model import modelutils
 
 
 def train(model:        fada.FADA,
           fada_dataset: fada_dataset.FadaDataset,
           batch_size:   int,
           seed:         int,
-          device:       torch.device) -> None:
+          device:       torch.device,
+          model_name:   str) -> None:
 
     dataset_utils.set_seeds(seed)
 
@@ -30,9 +32,9 @@ def train(model:        fada.FADA,
     source_valid_dataloader = DataLoader(dataset=fada_dataset.source_valid_subset, batch_size=batch_size)
     loss_ce = torch.nn.CrossEntropyLoss()
 
-    # optimizer = torch.optim.Adam(list(model.feature_extractor.parameters()) + list(model.classifier.parameters()),
-    #                               lr=1e-3)
     optimizer: optim.Optimizer = optim.Adam(params=model.parameters(), lr=1e-3, weight_decay=5e-3)
+    modelutils.unfreeze(model)
+    modelutils.freeze(model.DCD)
 
     for epoch in range(epochs_1):
         for batch_idx, (samples, labels, snr) in enumerate(source_train_dataloader):
@@ -54,10 +56,11 @@ def train(model:        fada.FADA,
 
         accuracy = round(acc / float(len(source_valid_dataloader)), 3)
 
-        print("step1----Epoch %d/%d  accuracy: %.3f " % (epoch + 1, epochs_1, accuracy))
+        print(f"[{model_name}]step1----Epoch %d/%d  accuracy: %.3f " % (epoch + 1, epochs_1, accuracy))
 
     # step 2: train DCD -----------------------------------------------
-    optimizer_D = torch.optim.Adam(model.DCD.parameters(), 1e-3)
+    optimizer_D = torch.optim.Adam(model.DCD.parameters(), lr=1e-3, weight_decay=5e-3)
+    modelutils.unfreeze(model)
 
     for epoch in range(epochs_2):
         groups, aa = fada_dataset.create_pair_groups(seed=epoch)
@@ -103,17 +106,21 @@ def train(model:        fada.FADA,
                 X2 = []
                 ground_truths = []
 
-        print("step2----Epoch %d/%d loss:%.3f" % (epoch + 1, epochs_2, np.mean(loss_mean)))
+        print(f"[{model_name}]step2----Epoch %d/%d loss:%.3f" % (epoch + 1, epochs_2, np.mean(loss_mean)))
 
     # step 3:  -----------------------------------------------
-    optimizer_g_h = torch.optim.Adam(list(model.feature_extractor.parameters()) + list(model.classifier.parameters()),
-                                     lr=0.001)
-    optimizer_d = torch.optim.Adam(model.DCD.parameters(), lr=0.001)
+    optimizer_g_h = torch.optim.Adam(model.parameters(), lr=1e-3, weight_decay=5e-3)
+    optimizer_d = torch.optim.Adam(model.DCD.parameters(), lr=1e-3, weight_decay=5e-3)
 
     target_valid_dataloader = DataLoader(dataset=fada_dataset.target_valid_subset, batch_size=batch_size)
 
+    best_acc = 0.0
+
     for epoch in range(epochs_3):
         # train feature_extractor and classifier, DCD is frozen
+        modelutils.unfreeze(model)
+        modelutils.freeze(model.DCD)
+
         groups, groups_y = fada_dataset.create_pair_groups(epochs_2 + epoch)
         G1, G2, G3, G4 = groups
         Y1, Y2, Y3, Y4 = groups_y
@@ -184,6 +191,9 @@ def train(model:        fada.FADA,
                 dcd_labels = []
 
         # ----training dcd ,g and h frozen
+        modelutils.unfreeze(model)
+        modelutils.freeze(model.feature_extractor)
+        modelutils.freeze(model.classifier)
         X1 = []
         X2 = []
         ground_truths = []
@@ -225,16 +235,23 @@ def train(model:        fada.FADA,
 
         accuracy = round(acc / float(len(target_valid_dataloader)), 3)
 
-        print("step3----Epoch %d/%d  accuracy: %.3f " % (epoch + 1, epochs_3, accuracy))
+        print(f"[{model_name}]step3----Epoch %d/%d  accuracy: %.3f " % (epoch + 1, epochs_3, accuracy))
+
+        if accuracy > best_acc:
+            best_acc = accuracy
+            torch.save(model.state_dict(), model_name + '.pth')
+            print(f"[{model_name}]new best accuracy reached: {best_acc}, weights saved")
 
 
 if __name__ == "__main__":
     s_ds = rml_dataset.RmlHelper.rml201610a()
     t_ds = rml_dataset.RmlHelper.rml22()
 
-    dataset = fada_dataset.FadaDataset(s_ds, t_ds, 0.6,  50, 1)
+    shots_selections = [1, 2, 5, 10, 20, 50, 100, 200, 500]
 
-    device: torch.device = get_device()
-    model = fada.FADA()
-
-    train(model, dataset, 256, 42, device)
+    for shots in shots_selections:
+        for i in range(5):
+            dataset = fada_dataset.FadaDataset(s_ds, t_ds, 0.6, shots, 1)
+            device: torch.device = get_device()
+            model = fada.FADA()
+            train(model, dataset, 512, 42, device, f"fada_weights/fada_shots-{shots}_round-{i}")
