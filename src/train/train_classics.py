@@ -90,7 +90,7 @@ def evaluate(model: nn.Module,
         acc=acc_avg(), top5=acc5_avg(), loss=loss_avg())
 
     log_info(metric_desc)
-    return acc_avg, loss_avg
+    return acc_avg, loss_avg, acc5_avg
 
 
 def eval_and_get_acc(model: nn.Module,

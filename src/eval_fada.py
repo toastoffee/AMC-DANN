@@ -26,10 +26,21 @@ def run_train():
 
     criterion_ce = nn.CrossEntropyLoss()
 
-    model = FADA().to(device)
-    model.load_state_dict(torch.load('cnn1d_04c_all.pth'))
+    shots = 1
 
-    evaluate(model, target_valid_dataloader, criterion_ce, device, "[cnn1d_04c_on_22]")
+    model = FADA().to(device)
+    avg_acc = 0
+    avg_acc5 = 0
+    for i in range(5):
+        model.load_state_dict(torch.load(f'fada_weights/fada_shots-{shots}_round-{i}.pth'))
+        acc, loss, acc5 = evaluate(model, target_valid_dataloader, criterion_ce, device, f"[fada_shots-{shots}_round-{i}]")
+        avg_acc += acc()
+        avg_acc5 += acc5()
+
+    avg_acc /= 5.0
+    avg_acc5 /= 5.0
+
+    print(f"acc:{avg_acc}, acc5:{avg_acc5}")
 
 
 if __name__ == "__main__":

@@ -33,6 +33,7 @@ class RmlDataset(Dataset):
 
         self.Y = torch.from_numpy(dataset_dict['Y']).squeeze().t().long()
 
+        # 16a:-20~18dB  22:-20~20dB
         self.snr = torch.from_numpy(dataset_dict['snr']).t().float()
 
         self.modulation = dataset_dict['modulation']

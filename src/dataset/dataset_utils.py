@@ -92,3 +92,34 @@ def get_few_shots(dataset: Dataset,
     assert len(selected_indices) == len(class_indices) * shot
 
     return Subset(dataset, selected_indices)
+
+
+def get_few_shots_by_snrs(dataset: Dataset,
+                          shot:    int,
+                          seed:    int) -> Subset:
+    """
+    get random samples, shot for each snr
+    :param dataset: dataset pick from
+    :param shot: sample count of each class
+    :param seed: random seed
+    :return: subset of few shots
+    """
+    set_seeds(seed)
+
+    snr_indices = defaultdict(list)
+    for idx in range(len(dataset)):
+        _, _, snr = dataset[idx]
+        snr = int(snr)
+
+        if snr != 20:
+            snr_indices[snr].append(idx)
+
+    selected_indices = []
+    for cls, indices in snr_indices.items():
+        # 确保每个snr都采样shot个样本
+        cls_selected = random.sample(indices, shot)
+        selected_indices.extend(cls_selected)
+
+    assert len(selected_indices) == len(snr_indices) * shot
+
+    return Subset(dataset, selected_indices)

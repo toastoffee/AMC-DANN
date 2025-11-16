@@ -247,7 +247,7 @@ if __name__ == "__main__":
     s_ds = rml_dataset.RmlHelper.rml201610a()
     t_ds = rml_dataset.RmlHelper.rml22()
 
-    shots_selections = [1, 2, 5, 10, 20, 50, 100, 200, 500]
+    shots_selections = [2, 5, 10, 20, 50, 100, 200, 500]
 
     for shots in shots_selections:
         for i in range(5):
