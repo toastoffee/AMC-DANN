@@ -55,8 +55,6 @@ class FadaSnrDataset:
         snrs = torch.unique(self.Snr_t)
         snrs = snrs[torch.randperm(len(snrs))]
 
-        rml16a_snrs = torch.unique(self.Snr_s)
-
         snrs_num = snrs.shape[0]
 
         def s_rand_indices(c):
@@ -72,8 +70,8 @@ class FadaSnrDataset:
         source_matrix = torch.stack(source_idxs)   # [21, 2*shot]
         target_matrix = torch.stack(target_idxs)    # [21, shot]
 
-        if target_matrix.shape == torch.Size([21]):
-            target_matrix = target_matrix.reshape(21, 1)
+        if target_matrix.shape == torch.Size([20]):
+            target_matrix = target_matrix.reshape(20, 1)
 
         # 初始化四组样本对和对应的标签对
         G1, G2, G3, G4 = [], [], [], []
