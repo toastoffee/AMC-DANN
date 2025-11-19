@@ -29,10 +29,10 @@ class FadaDataset:
         self.target_train_labeled_subset = dataset_utils.get_few_shots(self.target_train_subset, shots, seed)
         source_train_items = [self.source_train_subset[i] for i in range(len(self.source_train_subset))]
         target_train_labeled_items = [self.target_train_labeled_subset[i] for i in range(len(self.target_train_labeled_subset))]
-        self.X_s = torch.from_numpy([item[0] for item in source_train_items])
-        self.Y_s = torch.from_numpy([item[1] for item in source_train_items])
-        self.X_t = torch.from_numpy([item[0] for item in target_train_labeled_items])
-        self.Y_t = torch.from_numpy([item[1] for item in target_train_labeled_items])
+        self.X_s = torch.Tensor([item[0] for item in source_train_items])
+        self.Y_s = torch.Tensor([item[1] for item in source_train_items])
+        self.X_t = torch.Tensor([item[0] for item in target_train_labeled_items])
+        self.Y_t = torch.Tensor([item[1] for item in target_train_labeled_items])
 
     def create_pair_groups(self, seed: int):
         """

@@ -4,16 +4,16 @@ from torch import nn
 from torch.utils.data import DataLoader
 import torch.optim as optim
 
-from dataset import fada_dataset
+from dataset import fadasnr8_dataset
 from dataset import dataset_utils
 from dataset import rml_dataset
-from model import fada
+from model import fada8
 from train.device_utils import get_device
 from model import modelutils
 
 
-def train(model:        fada.FADA,
-          fada_dataset: fada_dataset.FadaDataset,
+def train(model:        fada8.FADA8,
+          fada_dataset: fadasnr8_dataset.FadaSnr8Dataset,
           batch_size:   int,
           seed:         int,
           device:       torch.device,
@@ -21,8 +21,8 @@ def train(model:        fada.FADA,
 
     dataset_utils.set_seeds(seed)
 
-    epochs_1 = 30
-    epochs_2 = 200
+    epochs_1 = 20
+    epochs_2 = 100
     epochs_3 = 100
 
     model.to(device)
@@ -65,7 +65,7 @@ def train(model:        fada.FADA,
     for epoch in range(epochs_2):
         groups, aa = fada_dataset.create_pair_groups(seed=epoch)
 
-        n_iters = 4 * len(groups[1])    # groups[1] => samples each 4 classes
+        n_iters = 8 * len(groups[1])    # groups[1] => samples each 4 classes
         index_list = torch.randperm(n_iters)
         mini_batch_size = 40
 
@@ -122,10 +122,10 @@ def train(model:        fada.FADA,
         modelutils.freeze(model.DCD)
 
         groups, groups_y = fada_dataset.create_pair_groups(epochs_2 + epoch)
-        G1, G2, G3, G4 = groups
-        Y1, Y2, Y3, Y4 = groups_y
-        groups_2 = [G2, G4]
-        groups_y_2 = [Y2, Y4]
+        G1, G2, G3, G4, G5, G6, G7, G8 = groups
+        Y1, Y2, Y3, Y4, Y5, Y6, Y7, Y8 = groups_y
+        groups_2 = [G2, G4, G5, G6, G7, G8]
+        groups_y_2 = [Y2, Y4, Y5, Y6, Y7, Y8]
 
         n_iters = 2 * len(G2)
         index_list = torch.randperm(n_iters)
@@ -141,16 +141,32 @@ def train(model:        fada.FADA,
         ground_truths_y2 = []
         dcd_labels=[]
 
+        def get_distorted_label(group_index):
+            """
+            根据组索引获取扭曲后的DCD标签
+
+            映射规则：
+            - G2(索引0), G5(索引2), G6(索引3) -> 扭曲为G1的标签(0)
+            - G4(索引1), G7(索引4), G8(索引5) -> 扭曲为G3的标签(2)
+            """
+            # 扭曲到G1的组
+            if group_index in [0, 2, 3]:  # G2, G5, G6
+                return 0  # 扭曲为G1的标签
+            # 扭曲到G3的组
+            elif group_index in [1, 4, 5]:  # G4, G7, G8
+                return 2  # 扭曲为G3的标签
+
+
         for index in range(n_iters):
 
             ground_truth = index_list[index] // len(G2)
             x1, x2 = groups_2[ground_truth][index_list[index] - len(G2) * ground_truth]
             y1, y2 = groups_y_2[ground_truth][index_list[index] - len(G2) * ground_truth]
-            dcd_label = 0 if ground_truth == 0 else 2
+            dcd_label = get_distorted_label(ground_truth)
             X1.append(x1)
             X2.append(x2)
-            ground_truths_y1.append(y1)
-            ground_truths_y2.append(y2)
+            ground_truths_y1.append(int(y1))
+            ground_truths_y2.append(int(y2))
             dcd_labels.append(dcd_label)
 
             if (index + 1) % mini_batch_size_g_h == 0:
@@ -247,11 +263,11 @@ if __name__ == "__main__":
     s_ds = rml_dataset.RmlHelper.rml201610a()
     t_ds = rml_dataset.RmlHelper.rml22()
 
-    shots_selections = [1, 2, 5, 10, 20, 50, 100, 200, 500]
+    shots_selections = [1, 2, 5, 10]
 
     for shots in shots_selections:
-        for i in range(1):
-            dataset = fada_dataset.FadaDataset(s_ds, t_ds, 0.6, shots, 1)
+        for i in range(3):
+            dataset = fadasnr8_dataset.FadaSnr8Dataset(s_ds, t_ds, 0.6, shots, 1)
             device: torch.device = get_device()
-            model = fada.FADA()
-            train(model, dataset, 512, 42, device, f"fada_weights/fada_shots-{shots}_round-{i}")
+            model = fada8.FADA8()
+            train(model, dataset, 512, 42, device, f"fada_weights/fadasnr8_shots-{shots}_round-{i}")

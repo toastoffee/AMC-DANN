@@ -1,6 +1,7 @@
 from torch.autograd import Function
 import torch
 from torch import nn
+import torch.nn.functional as F
 
 
 class GradientReversalFunction(Function):
@@ -33,4 +34,5 @@ def unfreeze(model: nn.Module):
     """
     for param in model.parameters():
         param.requires_grad = True
+
 
