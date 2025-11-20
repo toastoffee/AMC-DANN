@@ -47,6 +47,13 @@ class DisDANN(nn.Module):
             nn.Linear(in_features=256, out_features=11),
             nn.Softmax(dim=1))
 
+        self.domain_classifier = nn.Sequential(
+            nn.Linear(in_features=8192, out_features=2048),
+            nn.LeakyReLU(),
+            nn.Dropout(0.6),
+            nn.Linear(in_features=2048, out_features=11),
+            nn.Softmax(dim=1))
+
         for m in self.modules():
             if isinstance(m, nn.Conv1d):
                 nn.init.kaiming_normal_(m.weight)
@@ -59,11 +66,15 @@ class DisDANN(nn.Module):
 
         feature_class = self.fe_class(x)
         feature_class = feature_class.view(feature_class.size(0), -1)
+        feature_class -= feature_domain
+
+        # domain classification
+        domain_logits = self.domain_classifier(feature_domain)
 
         # class classification
         class_logits = self.classifier(feature_class)
 
-        return class_logits, feature_domain, feature_class
+        return class_logits, domain_logits, feature_domain, feature_class
 
 
 class dann_wrapper(nn.Module):

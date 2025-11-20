@@ -45,6 +45,10 @@ def run_train():
         'total': [], 'class': [], 'orthogonal': [], 'contrastive': []
     }
 
+    # step1: train the class feature extractor and classifier
+
+
+    # step2: train the entire network
     for epoch in range(num_epochs):
         epoch_losses = {'total': 0, 'class': 0, 'orthogonal': 0, 'contrastive': 0}
 
@@ -70,14 +74,15 @@ def run_train():
             combined_domains = torch.cat([source_domains, target_domains], dim=0)
 
             # forward
-            class_logits, feature_domain, feature_class = model(combined_data)
+            class_logits, domain_logits, feature_domain, feature_class = model(combined_data)
 
             # calculate modulation classification loss (only source-domain)
             source_class_logits = class_logits[:batch_size]
             class_loss = classification_loss_fn(source_class_logits, source_labels)
+            domain_loss = classification_loss_fn(domain_logits, combined_domains)
 
             # 特征正交损失
-            orthogonal_loss = orthogonal_loss_fn(feature_domain, feature_class)
+            # orthogonal_loss = orthogonal_loss_fn(feature_domain, feature_class)
 
             # 对比学习损失
             contrastive_loss = domain_aware_contrastive_loss(feature_domain, combined_domains, contrastive_loss_fn, batch_size)
@@ -86,7 +91,7 @@ def run_train():
             lambda_cont = 0.5
             total_loss = (
                 class_loss +
-                lambda_orth * orthogonal_loss +
+                # lambda_orth * orthogonal_loss +
                 lambda_cont * contrastive_loss
             )
 
@@ -99,14 +104,15 @@ def run_train():
 
             epoch_losses['total'] += total_loss.item()
             epoch_losses['class'] += class_loss.item()
-            epoch_losses['orthogonal'] += orthogonal_loss.item()
+            # epoch_losses['orthogonal'] += orthogonal_loss.item()
             epoch_losses['contrastive'] += contrastive_loss.item()
 
             # 每50个batch打印一次进度
             if batch_idx % 50 == 0:
                 print(f'Epoch [{epoch+1}/{num_epochs}], Batch [{batch_idx}/{min_len}], '
                       f'Total Loss: {total_loss.item():.4f}, Class Loss: {class_loss.item():.4f}, '
-                      f'Orthogonal Loss: {orthogonal_loss.item():.4f}, '
+                      f'domain class Loss: {domain_loss.item():.4f}, '
+                      # f'Orthogonal Loss: {orthogonal_loss.item():.4f}, '
                       f'Contrastive Loss: {contrastive_loss.item():.4f}')
 
         # 🎯 计算epoch平均损失
@@ -132,7 +138,7 @@ def validate_model(model, valid_loader, device):
             data = data.to(device, dtype=torch.float32)
             labels = labels.to(device)
 
-            class_logits, _, _ = model(data)
+            class_logits, _, _, _ = model(data)
             _, predicted = torch.max(class_logits.data, 1)
 
             total += labels.size(0)
