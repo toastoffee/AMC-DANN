@@ -182,7 +182,7 @@ def train_and_evaluate(model: nn.Module,
         # train and evaluate the model
         train_one_epoch(model, train_dataloader, optimizer, loss_fn, device,
                         f"[train] ({epoch}/{epochs})")
-        acc_val, loss_val = evaluate(model, val_dataloader, loss_fn, device, "[evaluation]")
+        acc_val, loss_val, _ = evaluate(model, val_dataloader, loss_fn, device, "[evaluation]")
 
         train_history['val_acc'].append(acc_val())
         train_history['val_loss'].append(loss_val())
