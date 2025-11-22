@@ -15,6 +15,34 @@ from model.loss_utils import covariance_orthogonal_loss
 warnings.filterwarnings('ignore')
 
 
+def orthogonal_between_two_models(model1, model2):
+    """
+    Compute orthogonality loss between corresponding weight matrices of two models.
+    Encourages <W1_i, W2_i> ≈ 0 for each layer i.
+
+    Assumes model1 and model2 have same architecture and parameter order.
+    """
+    loss = 0.0
+    count = 0
+
+    for (name1, param1), (name2, param2) in zip(model1.named_parameters(), model2.named_parameters()):
+        # Only apply to weight parameters (skip bias, BN params, etc.)
+        if 'weight' in name1 and param1.ndim >= 2:  # usually weight tensors are 2D+
+            # Flatten both weights to vectors
+            w1 = param1.view(-1)
+            w2 = param2.view(-1)
+
+            # Inner product (should be close to 0)
+            inner_prod = torch.dot(w1, w2)
+            loss += inner_prod ** 2  # squared to make it smooth and non-negative
+            count += 1
+
+    if count == 0:
+        return torch.tensor(0.0, device=next(model1.parameters()).device)
+
+    return loss / count  # optional: normalize by number of layers
+
+
 def run_train():
     device: torch.device = get_device()
 
@@ -82,18 +110,22 @@ def run_train():
             domain_loss = classification_loss_fn(domain_logits, combined_domains)
 
             # 特征正交损失
-            # orthogonal_loss = orthogonal_loss_fn(feature_domain, feature_class)
+            orthogonal_loss = orthogonal_loss_fn(feature_domain, feature_class)
+            # orthogonal_loss = orthogonal_between_two_models(model.fe_class, model.fe_domain)
 
             # 对比学习损失
             contrastive_loss = domain_aware_contrastive_loss(feature_domain, combined_domains, contrastive_loss_fn, batch_size)
 
             lambda_orth = 0.1
             lambda_cont = 0.5
-            total_loss = (
-                class_loss +
-                # lambda_orth * orthogonal_loss +
-                lambda_cont * contrastive_loss
-            )
+            # total_loss = (
+            #     class_loss +
+            #     domain_loss +
+            #     lambda_orth * orthogonal_loss +
+            #     lambda_cont * contrastive_loss
+            # )
+
+            total_loss = class_loss + domain_loss
 
             optimizer.zero_grad()
             total_loss.backward()
@@ -112,7 +144,7 @@ def run_train():
                 print(f'Epoch [{epoch+1}/{num_epochs}], Batch [{batch_idx}/{min_len}], '
                       f'Total Loss: {total_loss.item():.4f}, Class Loss: {class_loss.item():.4f}, '
                       f'domain class Loss: {domain_loss.item():.4f}, '
-                      # f'Orthogonal Loss: {orthogonal_loss.item():.4f}, '
+                      f'Orthogonal Loss: {orthogonal_loss.item():.4f}, '
                       f'Contrastive Loss: {contrastive_loss.item():.4f}')
 
         # 🎯 计算epoch平均损失

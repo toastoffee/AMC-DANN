@@ -35,15 +35,13 @@ class DANN(nn.Module):
             nn.Linear(in_features=1024, out_features=256),
             nn.LeakyReLU(),
             nn.Dropout(0.6),
-            nn.Linear(in_features=256, out_features=11),
-            nn.Softmax(dim=1))
+            nn.Linear(in_features=256, out_features=11))
 
         self.domain_classifier = nn.Sequential(
             nn.Linear(in_features=32768, out_features=2048),
             nn.LeakyReLU(),
             nn.Dropout(0.6),
-            nn.Linear(in_features=2048, out_features=2),
-            nn.Softmax(dim=1))
+            nn.Linear(in_features=2048, out_features=2))
 
         for m in self.modules():
             if isinstance(m, nn.Conv1d):

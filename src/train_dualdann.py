@@ -29,7 +29,7 @@ def run_train():
     model = DualDANN().to(device)
 
     # load pretrained weights
-    model.load_state_dict(torch.load('pretrained_dual_dann.pth'))
+    model.load_state_dict(torch.load('cnn1d_04c_all.pth'))
 
     optimizer: optim.Optimizer = optim.Adam(params=model.parameters(), lr=1e-3, weight_decay=5e-3)
 
