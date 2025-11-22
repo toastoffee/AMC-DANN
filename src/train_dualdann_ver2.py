@@ -8,7 +8,7 @@ import tqdm
 from train.device_utils import get_device
 from dataset.dataloader_helper import DataloaderHelper
 from train.train_dann import train_dann
-from model.dual_dann import DualDANN
+from model.dual_dann_ver2 import DualDANN
 from model.info_nce import InfoNCE, domain_aware_contrastive_loss
 from model.loss_utils import covariance_orthogonal_loss
 from model import modelutils

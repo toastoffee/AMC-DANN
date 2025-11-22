@@ -160,11 +160,12 @@ def train_epoch_dann_alt(model:           nn.Module,
         source_correct += source_acc * batch_size
         source_total += batch_size
 
-        print(f'Epoch: {epoch + 1}/{num_epochs} | '
-              f'Batch: {batch_idx}/{min_len} | '
-              f'Class Loss: {class_s_loss.item():.4f} | '
-              f'Domain Loss: {(domain_s_loss.item() + domain_t_loss.item()):.4f} | '
-              f'Source Acc: {source_acc:.3f}')
+        if batch_idx % 50 == 0:
+            print(f'Epoch: {epoch + 1}/{num_epochs} | '
+                  f'Batch: {batch_idx}/{min_len} | '
+                  f'Class Loss: {class_s_loss.item():.4f} | '
+                  f'Domain Loss: {(domain_s_loss.item() + domain_t_loss.item()):.4f} | '
+                  f'Source Acc: {source_acc:.3f}')
 
     avg_class_loss = total_class_loss / min_len
     avg_domain_loss = total_domain_loss / min_len
@@ -176,6 +177,7 @@ def train_epoch_dann_alt(model:           nn.Module,
 def train_dann(model:            nn.Module,
                source_loader:    DataLoader,
                target_loader:    DataLoader,
+               target_valid_loader: DataLoader,
                optimizer:        optim.Optimizer,
                device:           torch.device,
                num_epochs:       int,
@@ -191,4 +193,32 @@ def train_dann(model:            nn.Module,
                          epoch, num_epochs, optimizer,
                          class_criterion, domain_criterion, device, "placeholder")
 
+        valid_accuracy = validate_model(model, target_valid_loader, device)
+        print(f'Epoch [{epoch+1}/{num_epochs}] - Validation Accuracy: {valid_accuracy:.2f}%')
+
     torch.save(model.state_dict(), model_name + '.pth')
+
+
+def validate_model(model, valid_loader, device):
+    """
+    🎯 验证模型在源域上的性能
+    """
+    model.eval()
+    correct = 0
+    total = 0
+
+    with torch.no_grad():
+        for data, labels, snr, domains in valid_loader:
+            data = data.to(device, dtype=torch.float32)
+            labels = labels.to(device)
+
+            class_logits, _ = model(data, 0.0)
+            _, predicted = torch.max(class_logits.data, 1)
+
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+
+    accuracy = 100 * correct / total
+    model.train()  # 恢复训练模式
+
+    return accuracy

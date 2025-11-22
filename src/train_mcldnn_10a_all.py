@@ -6,25 +6,26 @@ import os
 
 from train.device_utils import get_device
 from dataset.dataloader_helper import DataloaderHelper
-from train.train_dann import train_dann
-from model.dann import DANN
+from train.train_classics import train_and_evaluate
+from model.mcldnn import MCLDNN
 
 warnings.filterwarnings('ignore')
 
 
 def run_train():
+
     device: torch.device = get_device()
 
     batch_size = 512
+    train_loader, valid_loader = DataloaderHelper.dataloader_10a(batch_size)
 
-    source_train_loader, source_valid_loader = DataloaderHelper.dataloader_10a(batch_size, 0.6, True, 0)
-    target_train_loader, target_valid_loader = DataloaderHelper.dataloader_22(batch_size, 0.6, True, 1)
+    criterion_ce = nn.CrossEntropyLoss()
 
-    model = DANN().to(device)
+    model = MCLDNN(num_classes=11).to(device)
 
     optimizer: optim.Optimizer = optim.Adam(params=model.parameters(), lr=1e-3, weight_decay=5e-3)
 
-    train_dann(model, source_train_loader, target_train_loader, target_valid_loader, optimizer, device, 50, "dann_10a_22")
+    train_and_evaluate(model, train_loader, valid_loader, optimizer, criterion_ce, device, 50, "mcldnn_10a_all")
 
 
 if __name__ == "__main__":
