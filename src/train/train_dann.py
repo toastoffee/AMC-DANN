@@ -4,6 +4,7 @@ from torch import nn
 from torch.utils.data import DataLoader
 import torch.optim as optim
 from sklearn.metrics import accuracy_score, top_k_accuracy_score
+from torch.optim.lr_scheduler import StepLR, MultiStepLR
 
 from log_utils import log_info
 
@@ -188,13 +189,17 @@ def train_dann(model:            nn.Module,
     class_criterion = nn.CrossEntropyLoss().to(device)
     domain_criterion = nn.CrossEntropyLoss().to(device)
 
+    scheduler = MultiStepLR(optimizer, milestones=[60, 120, 160], gamma=0.2)
+
     for epoch in range(num_epochs):
+        scheduler.step()
         train_epoch_dann_alt(model, source_loader, target_loader,
                          epoch, num_epochs, optimizer,
                          class_criterion, domain_criterion, device, "placeholder")
 
-        valid_accuracy = validate_model(model, target_valid_loader, device)
-        print(f'Epoch [{epoch+1}/{num_epochs}] - Validation Accuracy: {valid_accuracy:.2f}%')
+        if epoch % 5 == 0:
+            valid_accuracy = validate_model(model, target_valid_loader, device)
+            print(f'Epoch [{epoch+1}/{num_epochs}] - Validation Accuracy: {valid_accuracy:.2f}%')
 
     torch.save(model.state_dict(), model_name + '.pth')
 

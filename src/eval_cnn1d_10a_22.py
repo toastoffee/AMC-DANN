@@ -27,5 +27,7 @@ def run_train():
     evaluate(model, valid_loader, criterion_ce, device, "[cnn1d_10a_on_22]")
 
 
+
+
 if __name__ == "__main__":
     run_train()

@@ -135,6 +135,8 @@ def eval_and_get_acc(model: nn.Module,
     for snr_idx in range(21):
         snr_acc[snr_idx] = snr_right[snr_idx] / snr_all[snr_idx]
 
+    model.train()
+
     metric_desc = desc + "[evaluation complete] Eval metrics, acc: {acc: .4f},top-5:{top5: .4f} loss: {loss: .4f}".format(
         acc=acc_avg(), top5=acc5_avg(), loss=loss_avg())
 

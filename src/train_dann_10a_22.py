@@ -24,7 +24,7 @@ def run_train():
 
     optimizer: optim.Optimizer = optim.Adam(params=model.parameters(), lr=1e-3, weight_decay=5e-3)
 
-    train_dann(model, source_train_loader, target_train_loader, target_train_loader, optimizer, device, 50, "dann_10a_22")
+    train_dann(model, source_train_loader, target_train_loader, target_train_loader, optimizer, device, 100, "dann_10a_22")
 
 
 if __name__ == "__main__":

@@ -34,8 +34,7 @@ class CNN1d(nn.Module):
             nn.Linear(in_features=1024, out_features=256),
             nn.LeakyReLU(),
             nn.Dropout(0.6),
-            nn.Linear(in_features=256, out_features=11),
-            nn.Softmax(dim=1))
+            nn.Linear(in_features=256, out_features=11))
 
         for m in self.modules():
             if isinstance(m, nn.Conv1d):
