@@ -122,6 +122,7 @@ class ResNet1d(nn.Module):
         #     nn.Linear(2048, numclass)
         # )
 
+
         self.classifier = nn.Sequential(
             nn.Linear(2048, 512),
             nn.ReLU(),
@@ -143,6 +144,9 @@ class ResNet1d(nn.Module):
         out=self.stage4(out)
         out=self.gap(out)
         out=out.view(out.size(0), -1)
+
+
+
         out=self.classifier(out)
 
         return out

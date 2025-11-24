@@ -12,31 +12,150 @@ from model.dual_dann import DualDANN
 from model.info_nce import InfoNCE, domain_aware_contrastive_loss
 from model.loss_utils import covariance_orthogonal_loss
 from model import modelutils
+import torch.nn.functional as F
 
 warnings.filterwarnings('ignore')
 
 
+def build_domain_positive_pairs(feature_domain):
+    """
+    Build positive pairs for domain contrastive learning.
+
+    Assumes:
+        feature_domain: [2N, D]
+        first N samples: source domain
+        last N samples: target domain
+
+    Returns:
+        query: [2N, D]
+        positive_key: [2N, D]  # each sample's positive is another from same domain
+    """
+    N = feature_domain.size(0) // 2
+
+    # Split
+    src_feat = feature_domain[:N]  # [N, D]
+    tgt_feat = feature_domain[N:]  # [N, D]
+
+    # Circular shift: x[i] -> x[(i+1) % N]
+    src_pos = torch.cat([src_feat[1:], src_feat[:1]], dim=0)  # [N, D]
+    tgt_pos = torch.cat([tgt_feat[1:], tgt_feat[:1]], dim=0)  # [N, D]
+
+    # Combine
+    query = feature_domain  # [2N, D]
+    positive_key = torch.cat([src_pos, tgt_pos], dim=0)  # [2N, D]
+
+    return query, positive_key
+
+def build_domain_negative_pairs(feature_domain):
+    """
+    Build positive pairs for domain contrastive learning.
+
+    Assumes:
+        feature_domain: [2N, D]
+        first N samples: source domain
+        last N samples: target domain
+
+    Returns:
+        query: [2N, D]
+        positive_key: [2N, D]  # each sample's positive is another from same domain
+    """
+    N = feature_domain.size(0) // 2
+
+    # Split
+    src_feat = feature_domain[:N]  # [N, D]
+    tgt_feat = feature_domain[N:]  # [N, D]
+
+    # Circular shift: x[i] -> x[(i+1) % N]
+    src_pos = torch.cat([src_feat[N-1:], src_feat[:N-1]], dim=0)  # [N, D]
+    tgt_pos = torch.cat([tgt_feat[N-1:], tgt_feat[:N-1]], dim=0)  # [N, D]
+
+    # Combine
+    query = feature_domain  # [2N, D]
+    negative_key = torch.cat([tgt_pos, src_pos], dim=0)  # [2N, D]
+
+    return query, negative_key
+
+
+def domain_contrastive_loss(features, temperature=0.1, eps=1e-8):
+    """
+    Domain-aware contrastive loss:
+      - Pull samples from the same domain together
+      - Push samples from different domains apart
+
+    Args:
+        features: [2N, D] — first N: source, last N: target
+        temperature: float > 0
+        eps: small constant for numerical stability
+
+    Returns:
+        loss: scalar tensor
+    """
+    device = features.device
+    N2 = features.size(0)
+    assert N2 % 2 == 0, "Batch size must be even (N source + N target)"
+    N = N2 // 2
+
+    # L2 normalize features (critical for cosine similarity)
+    features = F.normalize(features, p=2, dim=1)  # [2N, D]
+
+    # Compute cosine similarity matrix
+    sim = torch.matmul(features, features.T) / temperature  # [2N, 2N]
+
+    # Build masks
+    # Same-domain mask (excluding self)
+    same_domain_mask = torch.zeros(N2, N2, dtype=torch.bool, device=device)
+    same_domain_mask[:N, :N] = True  # source-source
+    same_domain_mask[N:, N:] = True  # target-target
+    same_domain_mask.fill_diagonal_(False)  # exclude self
+
+    # Cross-domain mask (all source<->target pairs)
+    cross_domain_mask = ~same_domain_mask.clone()
+    cross_domain_mask.fill_diagonal_(False)  # though already false
+
+    # Numerically stable log-softmax style computation
+    sim_max, _ = torch.max(sim, dim=1, keepdim=True)
+    sim_stable = sim - sim_max.detach()
+
+    exp_sim = torch.exp(sim_stable)
+
+    # Positive sum: same domain
+    pos_sum = (exp_sim * same_domain_mask.float()).sum(dim=1)  # [2N]
+
+    # Negative sum: cross domain
+    neg_sum = (exp_sim * cross_domain_mask.float()).sum(dim=1)  # [2N]
+
+    # Avoid division by zero
+    denominator = pos_sum + neg_sum + eps
+    loss_per_sample = -torch.log((pos_sum + eps) / denominator)
+
+    return loss_per_sample.mean()
+
 def run_train():
     device: torch.device = get_device()
 
-    batch_size = 512
+    batch_size = 1024
 
     num_epochs = 50
 
-    source_train_loader, source_valid_loader = DataloaderHelper.dataloader_10a(batch_size, 0.6, True, 0)
-    target_train_loader, target_valid_loader = DataloaderHelper.dataloader_22(batch_size, 0.6, True, 1)
+    source_train_loader, _ = DataloaderHelper.dataloader_10a(batch_size, 1.0, True, 0)
+    target_train_loader, _ = DataloaderHelper.dataloader_22(batch_size, 1.0, True, 1)
 
     model = DualDANN().to(device)
 
     # load pretrained weights
-    model.load_state_dict(torch.load('cnn1d_04c_all.pth'))
+    # model.load_state_dict(torch.load('cnn1d_04c_all.pth'))
 
     optimizer: optim.Optimizer = optim.Adam(params=model.parameters(), lr=1e-3, weight_decay=5e-3)
 
     model.to(device)
     model.train()
+
+    modelutils.freeze(model.domain_fe)
+    modelutils.freeze(model.domain_classifier)
+
     orthogonal_loss_fn = covariance_orthogonal_loss
-    contrastive_loss_fn = InfoNCE(temperature=0.1).to(device)
+    # contrastive_loss_fn = InfoNCE(temperature=0.1).to(device)
+    contrastive_criterion = InfoNCE(temperature=0.1, reduction='mean', negative_mode='unpaired')
     classification_loss_fn = nn.CrossEntropyLoss().to(device)
 
     # create combined dataloader
@@ -84,18 +203,24 @@ def run_train():
             domain_loss = classification_loss_fn(domain_logits, combined_domains)
 
             # 特征正交损失
-            orthogonal_loss = orthogonal_loss_fn(feature_domain, feature_class)
+            # orthogonal_loss = orthogonal_loss_fn(feature_domain, feature_class)
 
             # 对比学习损失
-            contrastive_loss = domain_aware_contrastive_loss(feature_domain, combined_domains, contrastive_loss_fn, batch_size)
+            # contrastive_loss = domain_aware_contrastive_loss(feature_domain, combined_domains, contrastive_loss_fn, batch_size)
+            # query, pos = build_domain_positive_pairs(feature_domain)
+            # query, neg = build_domain_negative_pairs(feature_domain)
+            # contrastive_loss = contrastive_criterion(query, pos, neg)
+            contrastive_loss = domain_contrastive_loss(feature_domain)
 
             lambda_orth = 0.1
             lambda_cont = 0.5
-            total_loss = (
-                class_loss +
-                lambda_orth * orthogonal_loss +
-                lambda_cont * contrastive_loss
-            )
+            # total_loss = (
+            #     class_loss +
+            #     lambda_orth * orthogonal_loss +
+            #     lambda_cont * contrastive_loss
+            # )
+
+            total_loss = class_loss + domain_loss + lambda_cont * contrastive_loss
 
             optimizer.zero_grad()
             total_loss.backward()
@@ -106,7 +231,7 @@ def run_train():
 
             epoch_losses['total'] += total_loss.item()
             epoch_losses['class'] += class_loss.item()
-            epoch_losses['orthogonal'] += orthogonal_loss.item()
+            # epoch_losses['orthogonal'] += orthogonal_loss.item()
             epoch_losses['contrastive'] += contrastive_loss.item()
 
             # 每50个batch打印一次进度
@@ -114,7 +239,7 @@ def run_train():
                 print(f'[Step2]Epoch [{epoch+1}/{num_epochs}], Batch [{batch_idx}/{min_len}], '
                       f'Total Loss: {total_loss.item():.4f}, Class Loss: {class_loss.item():.4f}, '
                       f'domain class Loss: {domain_loss.item():.4f}, '
-                      f'Orthogonal Loss: {orthogonal_loss.item():.4f}, '
+                      # f'Orthogonal Loss: {orthogonal_loss.item():.4f}, '
                       f'Contrastive Loss: {contrastive_loss.item():.4f}')
 
         # 🎯 计算epoch平均损失
@@ -122,7 +247,7 @@ def run_train():
             epoch_losses[key] /= min_len
             train_losses[key].append(epoch_losses[key])
 
-        valid_accuracy = validate_model(model, target_valid_loader, device)
+        valid_accuracy = validate_model(model, target_train_loader, device)
         print(f'Epoch [{epoch+1}/{num_epochs}] - Validation Accuracy: {valid_accuracy:.2f}%')
 
 

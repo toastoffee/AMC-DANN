@@ -91,11 +91,12 @@ def run_train():
 
             lambda_orth = 0.1
             lambda_cont = 0.5
-            total_loss = (
-                class_loss +
-                lambda_orth * orthogonal_loss +
-                lambda_cont * contrastive_loss
-            )
+            # total_loss = (
+            #     class_loss +
+            #     lambda_orth * orthogonal_loss +
+            #     lambda_cont * contrastive_loss
+            # )
+            total_loss = class_loss + lambda_cont * contrastive_loss
 
             optimizer.zero_grad()
             total_loss.backward()

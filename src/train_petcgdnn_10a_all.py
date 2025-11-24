@@ -1,13 +1,12 @@
 import torch
 from torch import nn, optim
 from torch.optim.lr_scheduler import StepLR, MultiStepLR
-from torch.utils.data import DataLoader
+
 import warnings
-import os
 
 from train.device_utils import get_device
 from dataset.dataloader_helper import DataloaderHelper
-from model.mcldnn import MCLDNN
+from model.petcgdnn import PETCGDNN
 from train.train_classics import eval_and_get_acc
 
 warnings.filterwarnings('ignore')
@@ -21,7 +20,7 @@ def run_train():
 
     train_loader, valid_loader = DataloaderHelper.dataloader_10a(batch_size, 0.6)
 
-    model = MCLDNN(num_classes=11)
+    model = PETCGDNN(num_classes=11)
     model.to(device)
     model.train()
 

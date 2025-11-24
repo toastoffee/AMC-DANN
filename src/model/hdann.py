@@ -11,22 +11,19 @@ class LSTMEncoder(nn.Module):
     def forward(self, x):
         out, _ = self.rnn1(x)
         out, _ = self.rnn2(out)
-        out = out[:, -1, :]  # 取最后一个时间步
+        # out = out[:, -1, :]  # 取最后一个时间步
         return out
 
 
-class MCLDNNFeatureExtractor(nn.Module):
+class HDANN_ShallowFeatureExtractor(nn.Module):
     def __init__(self):
-        super(MCLDNNFeatureExtractor, self).__init__()
+        super(HDANN_ShallowFeatureExtractor, self).__init__()
         # Conv blocks
         self.conv1 = nn.Conv2d(1, 50, kernel_size=(1, 7), stride=1, padding=(0, 3), bias=True)
         self.conv2 = nn.Conv1d(1, 50, kernel_size=7, stride=1, padding=3, bias=True)
         self.conv3 = nn.Conv1d(1, 50, kernel_size=7, stride=1, padding=3, bias=True)
         self.conv4 = nn.Conv2d(50, 50, kernel_size=(1, 7), stride=1, padding=(0, 3), bias=True)
         self.conv5 = nn.Conv2d(100, 100, kernel_size=(2, 5), stride=1, bias=True)
-
-        # LSTM encoder
-        self.encoder_layer_t = LSTMEncoder(input_size=100, hidden_size=128)
 
         # 初始化权重（可选）
         for m in self.modules():
@@ -59,8 +56,7 @@ class MCLDNNFeatureExtractor(nn.Module):
         y = y.squeeze(2)                # [B, 100, L_out]
         y = y.transpose(1, 2)           # [B, L_out, 100]
 
-        features = self.encoder_layer_t(y)  # [B, 128]
-        return features
+        return y
 
 
 class MCLDNNClassifier(nn.Module):
@@ -87,22 +83,37 @@ class MCLDNNClassifier(nn.Module):
         return logits
 
 
-class MCLDNN(nn.Module):
+class HDANN(nn.Module):
     def __init__(self, num_classes):
-        super(MCLDNN, self).__init__()
-        self.feature_extractor = MCLDNNFeatureExtractor()
-        self.classifier = MCLDNNClassifier(num_classes)
+        super(HDANN, self).__init__()
+        self.feature_extractor = HDANN_ShallowFeatureExtractor()
+        self.lstm1 = LSTMEncoder(input_size=100, hidden_size=128)
+        self.lstm2 = LSTMEncoder(input_size=128, hidden_size=128)
+
+        self.classifier_lstm1 = MCLDNNClassifier(num_classes)
+        self.classifier_lstm2 = MCLDNNClassifier(num_classes)
 
     def forward(self, x):
-        features = self.feature_extractor(x)
-        logits = self.classifier(features)
+        feature_cnn = self.feature_extractor(x)
+        feature_lstm1 = self.lstm1(feature_cnn)
+        feature_lstm2 = self.lstm2(feature_lstm1)
+
+        # feature_cnn = torch.sum(feature_cnn, dim=1)
+        feature_cnn = feature_cnn.reshape(feature_cnn.size(0), -1)
+        feature_lstm1_sum = torch.sum(feature_lstm1, dim=1)
+        feature_lstm2_sum = torch.sum(feature_lstm2, dim=1)
+
+        logits = self.classifier_cnn(feature_cnn)
+        logits = self.classifier_lstm1(feature_lstm1_sum)
+        logits = self.classifier_lstm2(feature_lstm2_sum)
+
         return logits
 
 
 if __name__ == "__main__":
     sgn = torch.randn((64, 2, 128))
 
-    net = MCLDNN(num_classes=11)
+    net = HDANN(num_classes=11)
 
     p = net(sgn)
 
