@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from modelutils import GradientReversalFunction
+
 class LSTMEncoder(nn.Module):
     def __init__(self, input_size, hidden_size):
         super(LSTMEncoder, self).__init__()
@@ -129,9 +131,10 @@ class HighFidelitySignalDecoder(nn.Module):
 
         return x
 
-class MCLDNNClassifier(nn.Module):
+
+class DistanClassifier(nn.Module):
     def __init__(self, num_classes, feat_dim=128):
-        super(MCLDNNClassifier, self).__init__()
+        super(DistanClassifier, self).__init__()
         self.fc1 = nn.Sequential(
             nn.Linear(feat_dim, 128),
             nn.SELU(inplace=True)
@@ -153,41 +156,57 @@ class MCLDNNClassifier(nn.Module):
         return logits
 
 
-class HDANN(nn.Module):
-    def __init__(self, num_classes):
-        super(HDANN, self).__init__()
-        self.feature_extractor = DISTAN_G()
-        self.lstm1 = LSTMEncoder(input_size=100, hidden_size=128)
-        self.lstm2 = LSTMEncoder(input_size=128, hidden_size=128)
+class DistanDANN(nn.Module):
+    def __init__(self):
+        super(DistanDANN, self).__init__()
+        self.g = DISTAN_G()
+        self.reconstructor = HighFidelitySignalDecoder()
+        self.domain_classifier = DistanClassifier(num_classes=2)
+        self.class_classifier = DistanClassifier(num_classes=11)
 
-        self.classifier_lstm1 = MCLDNNClassifier(num_classes)
-        self.classifier_lstm2 = MCLDNNClassifier(num_classes)
+        self.domain_mlp = nn.Sequential(
+            nn.Linear(128, 128),
+            nn.ReLU(),
+            nn.Linear(128, 128))
+
+        self.class_mlp = nn.Sequential(
+            nn.Linear(128, 128),
+            nn.ReLU(),
+            nn.Linear(128, 128))
+
+        self.mapping = nn.Sequential(
+            nn.Linear(128, 128),
+            nn.ReLU(),
+            nn.Linear(128, 128))
 
     def forward(self, x):
-        feature_cnn = self.feature_extractor(x)
-        feature_lstm1 = self.lstm1(feature_cnn)
-        feature_lstm2 = self.lstm2(feature_lstm1)
+        features = self.g(x)
 
-        # feature_cnn = torch.sum(feature_cnn, dim=1)
-        feature_cnn = feature_cnn.reshape(feature_cnn.size(0), -1)
-        feature_lstm1_sum = torch.sum(feature_lstm1, dim=1)
-        feature_lstm2_sum = torch.sum(feature_lstm2, dim=1)
+        features_domain = self.domain_mlp(features)
+        features_class = self.class_mlp(features)
+        features_class_no_grad = self.class_mlp(features.detach())
+        reversed_features_class_no_grad = GradientReversalFunction.apply(features_class_no_grad, 1.0)
 
-        logits = self.classifier_cnn(feature_cnn)
-        logits = self.classifier_lstm1(feature_lstm1_sum)
-        logits = self.classifier_lstm2(feature_lstm2_sum)
+        features_all = features_domain + features_class
+        features_all = self.mapping(features_all)
+        recons = self.reconstructor(features_all)
 
-        return logits
+        features_domain_sum = torch.sum(features_domain, dim=1)
+        features_class_sum = torch.sum(features_class, dim=1)
+        reversed_features_class_no_grad_sum = torch.sum(reversed_features_class_no_grad, dim=1)
+
+        class_logits = self.class_classifier(features_class_sum)
+        domain_logits = self.domain_classifier(reversed_features_class_no_grad_sum)
+        domain_logits_from_upper = self.domain_classifier(features_domain_sum)
+
+        return class_logits, domain_logits, features_class, features_domain, features_domain_sum, recons, domain_logits_from_upper
 
 
 if __name__ == "__main__":
     sgn = torch.randn((64, 2, 128))
 
-    net = DISTAN_G()
-
-    decoder = HighFidelitySignalDecoder(input_dim=128, target_len=128, n_channels=2)
+    net = DistanDANN()
 
     p = net(sgn)
-    p = decoder(p)
 
-    print(p.shape)
+    print(p[1].shape)
