@@ -6,7 +6,7 @@ import warnings
 import torch.nn.functional as F
 from train.device_utils import get_device
 from dataset.dataloader_helper import DataloaderHelper
-from model.dan import DAN
+from model.dan import ImageClassifier
 from model import modelutils
 # from model.mkmmd_loss import mk_mmd
 from model.mkmmd import MultipleKernelMaximumMeanDiscrepancy, GaussianKernel
@@ -22,7 +22,7 @@ def train_dan(
         lr: float = 1e-3,
         device: torch.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 ):
-    model = DAN(num_classes=11).to(device)
+    model = ImageClassifier(num_classes=11).to(device)
     optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=1e-4)
     ce_loss = nn.CrossEntropyLoss()
 
@@ -47,37 +47,33 @@ def train_dan(
             src_data, src_labels, _ = next(src_iter)
             tgt_data, _, _ = next(tgt_iter)  # 目标域无标签
 
+            min_batch = min(src_data.size(0), tgt_data.size(0))
+            src_data, src_labels = src_data[:min_batch], src_labels[:min_batch]
+            tgt_data = tgt_data[:min_batch]
+
             src_data, src_labels = src_data.to(device), src_labels.to(device)
             tgt_data = tgt_data.to(device)
 
             # 前向传播
-            src_logits, src_feats = model(src_data)
-            _, tgt_feats = model(tgt_data)
+            y_s, f_s = model(src_data)
+            y_t, f_t = model(tgt_data)
 
             # 分类损失（仅源域）
-            cls_loss = ce_loss(src_logits, src_labels)
+            cls_loss = ce_loss(y_s, src_labels)
 
             # MMD 损失（多层）
-            mmd_loss = 0.0
-            for key in src_feats.keys():
-                # mmd_loss += mk_mmd(src_feats[key], tgt_feats[key])
-                mmd_loss += mkmmd_loss(src_feats[key], tgt_feats[key])
+            transfer_loss = mkmmd_loss(f_s, f_t)
 
             # 总损失
-            total_loss = cls_loss + mmd_loss
+            total_loss = cls_loss + transfer_loss
 
             # 反向传播
             optimizer.zero_grad()
             total_loss.backward()
             optimizer.step()
 
-            total_cls_loss += cls_loss.item()
-            total_mmd_loss += mmd_loss.item()
-
-        avg_cls = total_cls_loss / min_len
-        avg_mmd = total_mmd_loss / min_len
-        if i % 10 == 0:
-            print(f"Epoch [{epoch + 1}/{num_epochs}] [Batch {i}/{min_len}] | Cls Loss: {avg_cls:.4f} | MMD Loss: {avg_mmd:.4f}")
+            if i % 20 == 0:
+                print(f"Epoch [{epoch + 1}/{num_epochs}] [Batch {i}/{min_len}] | Cls Loss: {cls_loss.item():.4f} | MMD Loss: {transfer_loss.item():.4f}")
 
         if epoch % 5 == 0:
             validate_model(model, target_train_loader, device)
@@ -107,13 +103,16 @@ def validate_model(model, valid_loader, device):
     accuracy = 100 * correct / total
     model.train()  # 恢复训练模式
 
+    print(f"target domain acc:{accuracy}")
+
     return accuracy
+
 
 if __name__ == "__main__":
 
     device: torch.device = get_device()
 
-    batch_size = 64
+    batch_size = 1024
     num_epochs = 50
     num_k = 4
 
