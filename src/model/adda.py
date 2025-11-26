@@ -1,101 +1,105 @@
 import torch
-import torch.nn as nn
+from torch import nn, optim
 import torch.nn.functional as F
+from train.device_utils import get_device
+from model import modelutils
 
 
 class ADDA(nn.Module):
     """
-    Adversarial Discriminative Domain Adaptation (ADDA) 模型。
-
-    包含三个子模块：
-        - source_encoder: 源域编码器（预训练后固定）
-        - classifier: 分类器（预训练后固定）
-        - target_encoder: 目标域编码器（对抗训练阶段更新）
-        - domain_discriminator: 域判别器（对抗训练阶段更新）
-
-    输入格式: [batch_size, 2, 128]
+    Adversarial Discriminative Domain Adaptation 模型
+    输入形状: [B, 2, 128] - I/Q信号数据
     """
 
-    def __init__(self, num_classes=11, hidden_dim=128):
+    def __init__(self, num_classes: int = 11):
         super(ADDA, self).__init__()
-        self.hidden_dim = hidden_dim
         self.num_classes = num_classes
+        self.feature_dim = 256
 
-        # 共享结构的编码器（用于初始化）
-        self._encoder_template = nn.Sequential(
-            nn.Conv1d(2, 64, kernel_size=7, padding=3),
-            nn.ReLU(),
-            nn.Conv1d(64, 128, kernel_size=5, padding=2),
-            nn.ReLU(),
-            nn.Conv1d(128, 128, kernel_size=3, padding=1),
-            nn.ReLU(),
-            nn.AdaptiveAvgPool1d(16),
-            nn.Flatten(),
-            nn.Linear(128 * 16, hidden_dim)
-        )
+        # 源编码器
+        self.source_encoder = self._build_encoder()
+        # 目标编码器 - 结构相同但参数独立
+        self.target_encoder = self._build_encoder()
+        # 分类器 - 源域和目标域共享
+        self.classifier = self._build_classifier()
+        # 域判别器
+        self.discriminator = self._build_discriminator()
 
-        # 源域编码器（预训练 + 固定）
-        self.source_encoder = nn.Sequential(*list(self._encoder_template.children()))
-
-        # 目标域编码器（从源复制，对抗训练时更新）
-        self.target_encoder = nn.Sequential(*list(self._encoder_template.children()))
-
-        # 分类器（仅在源域预训练，之后固定）
-        self.classifier = nn.Sequential(
-            nn.Linear(hidden_dim, 128),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(128, num_classes)
-        )
-
-        # 域判别器（对抗训练）
-        self.domain_discriminator = nn.Sequential(
-            nn.Linear(hidden_dim, 128),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(128, 1),
-            nn.Sigmoid()
-        )
-
-    def forward_source(self, x):
-        """用于第一阶段：源域预训练"""
-        feat = self.source_encoder(x)
-        logits = self.classifier(feat)
-        return logits, feat
-
-    def forward_target(self, x):
-        """用于第二阶段：目标域特征提取"""
-        return self.target_encoder(x)
-
-    def discriminate(self, feat):
-        """域判别"""
-        return self.domain_discriminator(feat).squeeze(-1)  # [B]
-
-    def copy_source_to_target(self):
-        """将源编码器权重复制给目标编码器（第二阶段开始前调用）"""
+        # 初始化目标编码器权重（复制源编码器）
         self.target_encoder.load_state_dict(self.source_encoder.state_dict())
 
-    def freeze_source_and_classifier(self):
-        """冻结源编码器和分类器（第二阶段使用）"""
-        for param in self.source_encoder.parameters():
-            param.requires_grad = False
-        for param in self.classifier.parameters():
-            param.requires_grad = False
-
-    def unfreeze_target_and_disc(self):
-        """确保目标编码器和判别器可训练"""
+        # 冻结目标编码器初始状态
         for param in self.target_encoder.parameters():
-            param.requires_grad = True
-        for param in self.domain_discriminator.parameters():
-            param.requires_grad = True
+            param.requires_grad = False
 
+    def _build_encoder(self) -> nn.Module:
+        """构建I/Q信号编码器"""
+        return nn.Sequential(
+            # [B, 2, 128] -> [B, 64, 124]
+            nn.Conv1d(in_channels=2, out_channels=64, kernel_size=5, padding=2),
+            nn.BatchNorm1d(64),
+            nn.ReLU(inplace=True),
+            nn.MaxPool1d(kernel_size=2, stride=2),  # [B, 64, 62]
 
-if __name__ == "__main__":
-    sgn = torch.randn((64, 2, 128))
+            # [B, 64, 62] -> [B, 128, 58]
+            nn.Conv1d(in_channels=64, out_channels=128, kernel_size=5, padding=2),
+            nn.BatchNorm1d(128),
+            nn.ReLU(inplace=True),
+            nn.MaxPool1d(kernel_size=2, stride=2),  # [B, 128, 31]
 
-    net = ADDA()
+            # [B, 128, 31] -> [B, 256, 27]
+            nn.Conv1d(in_channels=128, out_channels=256, kernel_size=5, padding=2),
+            nn.BatchNorm1d(256),
+            nn.ReLU(inplace=True),
+            nn.AdaptiveAvgPool1d(1),  # [B, 256, 1]
 
-    sgn, _ = net.forward_source(sgn)
+            nn.Flatten(),
+            nn.Linear(256, self.feature_dim),
+            nn.ReLU(inplace=True),
+            nn.Dropout(0.5)
+        )
 
-    print(sgn.shape)
-    print(_.shape)
+    def _build_classifier(self) -> nn.Module:
+        """构建分类器"""
+        return nn.Sequential(
+            nn.Linear(self.feature_dim, 512),
+            nn.ReLU(inplace=True),
+            nn.Dropout(0.5),
+            nn.Linear(512, self.num_classes)
+        )
+
+    def _build_discriminator(self) -> nn.Module:
+        """构建域判别器"""
+        return nn.Sequential(
+            nn.Linear(self.feature_dim, 512),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Dropout(0.3),
+            nn.Linear(512, 256),
+            nn.LeakyReLU(0.2, inplace=True),
+            nn.Dropout(0.3),
+            nn.Linear(256, 1)
+        )
+
+    def forward(self, x: torch.Tensor, domain: str = 'source', return_features: bool = False):
+        """
+        前向传播
+        Args:
+            x: 输入信号 [B, 2, 128]
+            domain: 'source' 或 'target'
+            return_features: 是否返回特征
+        """
+        if domain == 'source':
+            features = self.source_encoder(x)
+        else:
+            features = self.target_encoder(x)
+
+        logits = self.classifier(features)
+
+        if return_features:
+            return logits, features
+        return logits
+
+    def get_domain_prediction(self, features: torch.Tensor) -> torch.Tensor:
+        """获取域判别结果"""
+        return self.discriminator(features)
+
