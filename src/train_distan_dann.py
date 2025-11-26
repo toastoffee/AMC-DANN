@@ -7,6 +7,7 @@ from dataset.dataloader_helper import DataloaderHelper
 from model.distan_dann import DistanDANN
 from model.loss_utils import covariance_orthogonal_loss, domain_contrastive_loss, covariance_orthogonal_loss_3d
 from model.modelutils import GradientReversalFunction, freeze, unfreeze
+from dataset.dataset_utils import set_seeds
 
 warnings.filterwarnings('ignore')
 
@@ -14,8 +15,9 @@ warnings.filterwarnings('ignore')
 def run_train(model_name: str, seq: int):
     device: torch.device = get_device()
 
-    batch_size = 1024
+    set_seeds(seq)
 
+    batch_size = 1024
     num_epochs = 50
 
     source_train_loader, _ = DataloaderHelper.dataloader_10a(batch_size, 1.0, True, 0)
@@ -133,7 +135,7 @@ def run_train(model_name: str, seq: int):
         acc = valid_accuracy = validate_model(model, target_train_loader, device)
         if acc > best_acc:
             best_acc = acc
-            torch.save(model.state_dict(), f"../autodl-tmp/UDA/{model_name}/" + f'{model_name}_{seq}.pth')
+            torch.save(model.state_dict(), f"../autodl-tmp/uda/{model_name}/" + f'{model_name}_{seq}.pth')
 
         print(f'Epoch [{epoch+1}/{num_epochs}] - Validation Accuracy: {valid_accuracy:.2f}%')
 
@@ -165,4 +167,4 @@ def validate_model(model, valid_loader, device):
 
 if __name__ == "__main__":
     for i in range(5):
-        run_train("distanDann", i)
+        run_train("distan_dann", i)
