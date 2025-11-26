@@ -19,7 +19,8 @@ def run_train():
     batch_size = 512
     num_epochs = 50
 
-    train_loader, valid_loader = DataloaderHelper.dataloader_10a(batch_size, 0.6)
+    train_source_loader, _ = DataloaderHelper.dataloader_10a(batch_size, 1.0)
+    train_target_loader, _ = DataloaderHelper.dataloader_22(batch_size, 1.0)
 
     model = MCLDNN(num_classes=11)
     model.to(device)
@@ -33,7 +34,7 @@ def run_train():
     for epoch in range(num_epochs):
         scheduler.step()
 
-        for batch_idx, (data, labels, snr) in enumerate(train_loader):
+        for batch_idx, (data, labels, snr) in enumerate(train_source_loader):
 
             data = data.to(device, dtype=torch.float32)
             labels = labels.to(device)
@@ -46,11 +47,11 @@ def run_train():
             optimizer.step()
 
             if batch_idx % 50 == 0:
-                print(f'Epoch [{epoch+1}/{num_epochs}], Batch [{batch_idx}/{len(train_loader)}], '
+                print(f'Epoch [{epoch+1}/{num_epochs}], Batch [{batch_idx}/{len(train_source_loader)}], '
                       f'Loss: {loss.item():.4f}, ')
 
         if epoch % 5 == 0:
-            eval_and_get_acc(model, valid_loader, criterion, device, "[src]")
+            eval_and_get_acc(model, train_target_loader, criterion, device, "[target]")
 
 
 
