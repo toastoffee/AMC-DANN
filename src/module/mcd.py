@@ -61,6 +61,14 @@ class MCD(nn.Module):
         return class_logits1, class_logits2
 
 
+class MCD_wrapper(nn.Module):
+    def __init__(self, mcd: MCD):
+        super(MCD_wrapper, self).__init__()
+        self.mcd = mcd
+
+    def forward(self, x):
+        return self.mcd(x)[0]
+
 if __name__ == "__main__":
     sgn = torch.randn((64, 2, 128))
 

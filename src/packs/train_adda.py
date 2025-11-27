@@ -3,9 +3,8 @@ from torch import nn, optim
 import warnings
 import torch.nn.functional as F
 from train.device_utils import get_device
-from module.adda import ADDA
+from model.adda import ADDA
 from sklearn.metrics import accuracy_score
-from dataset.dataset_utils import set_seeds
 
 warnings.filterwarnings('ignore')
 
@@ -13,7 +12,6 @@ warnings.filterwarnings('ignore')
 def train_adda(
         source_loader,
         target_loader,
-        da_dataset: str, model_name: str, seq: int,
         num_epochs: int = 50,
         lr: float = 1e-3,
         device: torch.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -22,10 +20,7 @@ def train_adda(
     ADDA训练函数 - 遵循DAN代码风格
     """
     # 初始化模型
-    set_seeds(seq)
-
     model = ADDA(num_classes=11).to(device)
-
 
     # 阶段1：源域预训练优化器
     source_optimizer = optim.Adam(
@@ -45,8 +40,6 @@ def train_adda(
 
     # 阶段1：源域预训练
     model.train()
-
-    best_acc = 0
     for epoch in range(num_epochs // 2):  # 一半epoch用于源预训练
         total_cls_loss = 0.0
         batch_count = 0
@@ -152,16 +145,12 @@ def train_adda(
                       f"Disc Loss: {loss_disc.item():.4f} | Target Loss: {loss_target.item():.4f}")
 
         # 每5个epoch验证一次
-        target_acc = validate_model(model, target_loader, device, domain='target')
-        print(f"对抗训练 Epoch [{epoch + 1}/{num_epochs}] | "
-              f"平均Disc Loss: {total_disc_loss / batch_count:.4f} | "
-              f"平均Target Loss: {total_target_loss / batch_count:.4f} | "
-              f"目标域准确率: {target_acc:.2f}%")
-        if target_acc > best_acc:
-            best_acc = target_acc
-            print(f"new best acc:{best_acc}, weights saved")
-            torch.save(model.state_dict(),
-                       f"../autodl-tmp/uda/{da_dataset}/{model_name}/" + f'{model_name}_{seq}.pth')
+        if epoch % 5 == 0:
+            target_acc = validate_model(model, target_loader, device, domain='target')
+            print(f"对抗训练 Epoch [{epoch + 1}/{num_epochs}] | "
+                  f"平均Disc Loss: {total_disc_loss / batch_count:.4f} | "
+                  f"平均Target Loss: {total_target_loss / batch_count:.4f} | "
+                  f"目标域准确率: {target_acc:.2f}%")
 
     return model
 
@@ -198,19 +187,20 @@ if __name__ == "__main__":
     device: torch.device = get_device()
 
     batch_size = 1024
-    num_epochs = 20
+    num_epochs = 50
 
     # 加载数据
     source_train_loader, _ = DataloaderHelper.dataloader_10a(batch_size, 1.0)
     target_train_loader, _ = DataloaderHelper.dataloader_22(batch_size, 1.0)
 
     # 训练ADDA模型
-    for i in range(5):
-        print(f"start seq-{i}")
-        trained_model = train_adda(
-            source_train_loader,
-            target_train_loader,
-            "16a_22", "adda", i,
-            num_epochs=num_epochs,
-            device=device
-        )
+    trained_model = train_adda(
+        source_train_loader,
+        target_train_loader,
+        num_epochs=num_epochs,
+        device=device
+    )
+
+    # 最终验证
+    final_acc = validate_model(trained_model, target_train_loader, device, domain='target')
+    print(f"🎯 ADDA训练完成！最终目标域准确率: {final_acc:.2f}%")

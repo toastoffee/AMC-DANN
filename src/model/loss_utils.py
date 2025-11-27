@@ -2,7 +2,7 @@ import torch
 import torch.nn.functional as F
 
 
-def covariance_orthogonal_loss(z1, z2):
+def CovarianceOrthogonalLoss(z1, z2):
     """
     特征间协方差正交损失 - 约束两个特征集之间的正交性
 
@@ -52,10 +52,10 @@ def covariance_orthogonal_loss_3d(z1: torch.Tensor, z2: torch.Tensor) -> torch.T
     z2_2d = z2.view(-1, M)  # [B*N, M]
 
     # 直接调用你原来的函数
-    return covariance_orthogonal_loss(z1_2d, z2_2d)
+    return CovarianceOrthogonalLoss(z1_2d, z2_2d)
 
 
-def domain_contrastive_loss(features, temperature=0.1, eps=1e-8):
+def DomainContrastiveLoss(features, temperature=0.1, eps=1e-8):
     """
     Domain-aware contrastive loss:
       - Pull samples from the same domain together

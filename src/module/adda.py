@@ -1,8 +1,6 @@
 import torch
 from torch import nn, optim
 import torch.nn.functional as F
-from train.device_utils import get_device
-from model import modelutils
 
 
 class ADDA(nn.Module):

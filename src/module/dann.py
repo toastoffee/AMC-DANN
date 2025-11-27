@@ -24,25 +24,25 @@ class DANN(nn.Module):
         self.classifier = nn.Sequential(
             nn.Linear(in_features=8192, out_features=2048),
             nn.LeakyReLU(),
-            nn.Dropout(0.6),
+            nn.Dropout(0.7),
             nn.Linear(in_features=2048, out_features=1024),
             nn.LeakyReLU(),
-            nn.Dropout(0.6),
+            nn.Dropout(0.7),
             nn.Linear(in_features=1024, out_features=256),
             nn.LeakyReLU(),
-            nn.Dropout(0.6),
+            nn.Dropout(0.7),
             nn.Linear(in_features=256, out_features=11))
 
         self.domain_classifier = nn.Sequential(
             nn.Linear(in_features=8192, out_features=2048),
             nn.LeakyReLU(),
-            nn.Dropout(0.6),
+            nn.Dropout(0.7),
             nn.Linear(in_features=2048, out_features=1024),
             nn.LeakyReLU(),
-            nn.Dropout(0.6),
+            nn.Dropout(0.7),
             nn.Linear(in_features=1024, out_features=256),
             nn.LeakyReLU(),
-            nn.Dropout(0.6),
+            nn.Dropout(0.7),
             nn.Linear(in_features=256, out_features=2))
 
         for m in self.modules():
@@ -65,11 +65,21 @@ class DANN(nn.Module):
         return class_logits, domain_logits
 
 
+class DANN_wrapper(nn.Module):
+    def __init__(self, dann: DANN):
+        super(DANN_wrapper, self).__init__()
+        self.dann = dann
+
+    def forward(self, x):
+        return self.dann(x, 1.0)[0]
+
+
 if __name__ == "__main__":
     sgn = torch.randn((64, 2, 128))
 
     net = DANN()
+    net = DANN_wrapper(net)
 
-    sgn, _ = net(sgn, 1.0)
+    sgn = net(sgn)
 
     print(sgn.shape)

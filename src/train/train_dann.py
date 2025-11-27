@@ -55,7 +55,7 @@ def train_epoch_dann(model:           nn.Module,
         alpha = 2. / (1. + np.exp(-10 * p)) - 1.
 
         # forward
-        class_logits, domain_logits = model(combined_data, alpha)
+        class_logits, domain_logits = model(combined_data, alpha * 0.08)
 
         # calculate modulation classification loss (only source-domain)
         source_class_logits = class_logits[:batch_size]
@@ -137,7 +137,7 @@ def train_epoch_dann_alt(model:           nn.Module,
         alpha = 2. / (1. + np.exp(-10 * p)) - 1.
 
         # train with source-domain data
-        class_s_logits, domain_s_logits = model(source_data, alpha)
+        class_s_logits, domain_s_logits = model(source_data, alpha * 0.55)
         class_s_loss = class_criterion(class_s_logits, source_labels)
         domain_s_loss = domain_criterion(domain_s_logits, source_domains)
 
@@ -182,7 +182,9 @@ def train_dann(model:            nn.Module,
                optimizer:        optim.Optimizer,
                device:           torch.device,
                num_epochs:       int,
-               model_name:       str):
+               da_dataset: str,
+               model_name: str,
+               seq: int):
     log_info("start training: " + model_name)
 
     model.to(device)
@@ -191,17 +193,20 @@ def train_dann(model:            nn.Module,
 
     scheduler = MultiStepLR(optimizer, milestones=[60, 120, 160], gamma=0.2)
 
+    best_acc = 0
     for epoch in range(num_epochs):
         scheduler.step()
         train_epoch_dann_alt(model, source_loader, target_loader,
                          epoch, num_epochs, optimizer,
                          class_criterion, domain_criterion, device, "placeholder")
 
-        if epoch % 5 == 0:
-            valid_accuracy = validate_model(model, target_valid_loader, device)
-            print(f'Epoch [{epoch+1}/{num_epochs}] - Validation Accuracy: {valid_accuracy:.2f}%')
+        valid_accuracy = validate_model(model, target_valid_loader, device)
+        print(f'Epoch [{epoch+1}/{num_epochs}] - Validation Accuracy: {valid_accuracy:.2f}%')
 
-    torch.save(model.state_dict(), model_name + '.pth')
+        if valid_accuracy > best_acc:
+            best_acc = valid_accuracy
+            print(f"new best acc:{best_acc}, weights saved")
+            torch.save(model.state_dict(), f"../autodl-tmp/uda/{da_dataset}/{model_name}/" + f'{model_name}_{seq}.pth')
 
 
 def validate_model(model, valid_loader, device):

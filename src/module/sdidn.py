@@ -183,13 +183,13 @@ class DistanDANN(nn.Module):
             nn.ReLU(),
             nn.Linear(128, 128))
 
-    def forward(self, x):
+    def forward(self, x, alpha):
         features = self.g(x)
 
         features_domain = self.domain_mlp(features)
         features_class = self.class_mlp(features)
         features_class_no_grad = self.class_mlp(features.detach())
-        reversed_features_class_no_grad = GradientReversalFunction.apply(features_class_no_grad, 1.0)
+        reversed_features_class_no_grad = GradientReversalFunction.apply(features_class_no_grad, alpha)
 
         features_all = features_domain + features_class
         features_all = self.mapping(features_all)
@@ -205,6 +205,14 @@ class DistanDANN(nn.Module):
 
         return class_logits, domain_logits, features_class, features_domain, features_domain_sum, recons, domain_logits_from_upper
 
+
+class SDIDN_wrapper(nn.Module):
+    def __init__(self, sdidn: DistanDANN):
+        super(sdidn, self).__init__()
+        self.sdidn = sdidn
+
+    def forward(self, x):
+        return self.sdidn(x, 1.0)[0]
 
 if __name__ == "__main__":
     sgn = torch.randn((64, 2, 128))

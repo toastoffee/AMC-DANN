@@ -7,7 +7,6 @@ import torch.nn.functional as F
 from train.device_utils import get_device
 from dataset.dataloader_helper import DataloaderHelper
 from model.mcd import MCD
-from dataset.dataset_utils import set_seeds
 from model import modelutils
 from sklearn.metrics import accuracy_score, top_k_accuracy_score
 
@@ -18,13 +17,11 @@ def discrepancy(out1, out2):
     return torch.mean(torch.abs(F.softmax(out1) - F.softmax(out2)))
 
 
-def run_train(da_dataset: str, model_name: str, seq: int):
+def run_train():
     device: torch.device = get_device()
 
-    set_seeds(seq)
-
-    batch_size = 256
-    num_epochs = 20
+    batch_size = 512
+    num_epochs = 50
     num_k = 4
 
     source_train_loader, _ = DataloaderHelper.dataloader_10a(batch_size, 1.0)
@@ -47,7 +44,6 @@ def run_train(da_dataset: str, model_name: str, seq: int):
 
     min_len = min(len(source_train_loader), len(target_train_loader))
 
-    best_acc = 0
     for epoch in range(num_epochs):
 
         combined_loader = zip(iter(source_train_loader), iter(target_train_loader))
@@ -101,12 +97,8 @@ def run_train(da_dataset: str, model_name: str, seq: int):
                       f'Loss s2: {loss_s2.item():.4f}, '
                       f'Discrepancy: {loss_dis.item():.4f}, ')
 
-        acc = validate_model(model, target_train_loader, device)
-        if acc > best_acc:
-            best_acc = acc
-            print(f"new best acc:{best_acc}, weights saved")
-            torch.save(model.state_dict(),
-                       f"../autodl-tmp/uda/{da_dataset}/{model_name}/" + f'{model_name}_{seq}.pth')
+        if epoch % 5 == 0:
+            validate_model(model, target_train_loader, device)
 
 
 def validate_model(model, valid_loader, device):
@@ -138,9 +130,8 @@ def validate_model(model, valid_loader, device):
 
     model.train()  # 恢复训练模式
 
-    return accuracy1
+    return 0
 
 
 if __name__ == "__main__":
-    for i in range(1, 5):
-        run_train("16a_22", "mcd", i)
+    run_train()

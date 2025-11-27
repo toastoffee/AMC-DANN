@@ -117,6 +117,15 @@ class SignalBackbone(nn.Module):
         return x
 
 
+class DAN_wrapper(nn.Module):
+    def __init__(self, dan: DAN):
+        super(DAN_wrapper, self).__init__()
+        self.dan = dan
+
+    def forward(self, x):
+        return self.dan(x)[0]
+
+
 if __name__ == "__main__":
     sgn = torch.randn((64, 2, 128))
 

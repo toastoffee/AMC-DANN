@@ -6,12 +6,11 @@ import warnings
 import torch.nn.functional as F
 from train.device_utils import get_device
 from dataset.dataloader_helper import DataloaderHelper
-from module.dan import ImageClassifier
-from module import utils
-from module.loss import MultipleKernelMaximumMeanDiscrepancy
-from module.kernels import GaussianKernel
+from model.dan import ImageClassifier
+from model import modelutils
+# from model.mkmmd_loss import mk_mmd
+from model.mkmmd import MultipleKernelMaximumMeanDiscrepancy, GaussianKernel
 from sklearn.metrics import accuracy_score, top_k_accuracy_score
-from dataset.dataset_utils import set_seeds
 
 warnings.filterwarnings('ignore')
 
@@ -19,14 +18,10 @@ warnings.filterwarnings('ignore')
 def train_dan(
         source_loader,
         target_loader,
-        da_dataset: str, model_name: str, seq: int,
         num_epochs: int = 50,
         lr: float = 1e-3,
-        device: torch.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu'),
+        device: torch.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 ):
-
-    set_seeds(seq)
-
     model = ImageClassifier(num_classes=11).to(device)
     optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=1e-4)
     ce_loss = nn.CrossEntropyLoss()
@@ -40,7 +35,6 @@ def train_dan(
     min_len = min(len(source_loader), len(target_loader))
 
     model.train()
-    best_acc = 0
     for epoch in range(num_epochs):
         total_cls_loss = 0.0
         total_mmd_loss = 0.0
@@ -81,12 +75,8 @@ def train_dan(
             if i % 20 == 0:
                 print(f"Epoch [{epoch + 1}/{num_epochs}] [Batch {i}/{min_len}] | Cls Loss: {cls_loss.item():.4f} | MMD Loss: {transfer_loss.item():.4f}")
 
-        acc = validate_model(model, target_train_loader, device)
-        if acc > best_acc:
-            best_acc = acc
-            print(f"new best acc:{best_acc}, weights saved")
-            torch.save(model.state_dict(),
-                       f"../autodl-tmp/uda/{da_dataset}/{model_name}/" + f'{model_name}_{seq}.pth')
+        if epoch % 5 == 0:
+            validate_model(model, target_train_loader, device)
 
     return model
 
@@ -129,4 +119,4 @@ if __name__ == "__main__":
     source_train_loader, _ = DataloaderHelper.dataloader_10a(batch_size, 1.0)
     target_train_loader, _ = DataloaderHelper.dataloader_22(batch_size, 1.0)
 
-    train_dan(source_train_loader, target_train_loader, "16a_22", "dan", 0, num_epochs)
+    train_dan(source_train_loader, target_train_loader, num_epochs)
