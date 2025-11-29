@@ -11,15 +11,11 @@ from train.mask_pretrain import apply_random_mask, reconstruction_loss
 warnings.filterwarnings('ignore')
 
 
-def run_train(da_dataset: str):
+def run_train(da_dataset: str, source_loader, target_loader):
     device: torch.device = get_device()
-
-    batch_size = 512
     num_epochs = 50
 
-    loader_10a, _ = DataloaderHelper.dataloader_10a(batch_size, 1.0)
-    loader_22, _ = DataloaderHelper.dataloader_22(batch_size, 1.0)
-    min_len = min(len(loader_10a), len(loader_22))
+    min_len = min(len(source_loader), len(target_loader))
 
     encoder = DISTAN_G().to(device)
     decoder = HighFidelitySignalDecoder().to(device)
@@ -38,8 +34,8 @@ def run_train(da_dataset: str):
     for epoch in range(num_epochs):
 
         combined_loader = zip(
-            iter(loader_10a),
-            iter(loader_22))
+            iter(source_loader),
+            iter(target_loader))
         for batch_idx, ((source_data, source_labels, source_snr),
                         (target_data, target_labels, target_snr)) in enumerate(combined_loader):
 
@@ -71,4 +67,11 @@ def run_train(da_dataset: str):
 
 
 if __name__ == "__main__":
-    run_train("16a_22")
+    batch_size = 512
+    loader16a, _ = DataloaderHelper.dataloader_10a(batch_size, 1.0)
+    loader22, _ = DataloaderHelper.dataloader_22(batch_size, 1.0)
+    loader16c, _ = DataloaderHelper.dataloader_04c(batch_size, 1.0)
+
+    run_train("22_16a", loader22, loader16a)
+    run_train("16c_22", loader16c, loader22)
+    run_train("22_16c", loader22, loader16c)

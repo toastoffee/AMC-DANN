@@ -11,7 +11,6 @@ from sklearn.metrics import accuracy_score, top_k_accuracy_score
 from metrics_utils import UpdatingAverage
 from log_utils import log_info
 
-
 # regular train with only one epoch
 def train_one_epoch(model: nn.Module,
                     dataloader: DataLoader,
@@ -104,9 +103,9 @@ def eval_and_get_acc(model: nn.Module,
     acc_avg = UpdatingAverage()
     acc5_avg = UpdatingAverage()
 
-    snr_right = np.zeros(21)
-    snr_all = np.zeros(21)
-    snr_acc = np.zeros(21)
+    snr_right = dict()
+    snr_all = dict()
+    snr_acc = dict()
 
     for i, (samples, labels, snrs) in enumerate(dataloader):
         samples, labels = samples.to(device, dtype=torch.float32), labels.to(device)
@@ -128,12 +127,17 @@ def eval_and_get_acc(model: nn.Module,
             pred = pred_labels[sample_idx]
             label = labels[sample_idx]
             snr = round(snrs[sample_idx].item())
+            if snr not in snr_all.keys():
+                snr_all[snr] = 0
             snr_all[snr] += 1
+
             if pred.item() == label.item():
+                if snr not in snr_right.keys():
+                    snr_right[snr] = 0
                 snr_right[snr] += 1
 
-    for snr_idx in range(21):
-        snr_acc[snr_idx] = snr_right[snr_idx] / snr_all[snr_idx]
+    for snr_key in snr_all.keys():
+        snr_acc[snr_key] = snr_right[snr_key] / snr_all[snr_key]
 
     model.train()
 

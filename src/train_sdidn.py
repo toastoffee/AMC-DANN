@@ -15,22 +15,20 @@ import numpy as np
 warnings.filterwarnings('ignore')
 
 
-def run_train(da_dataset: str, model_name: str, seq: int):
+def run_train(source_train_loader, target_train_loader, da_dataset: str, model_name: str, seq: int):
     device: torch.device = get_device()
 
     set_seeds(seq)
 
-    batch_size = 1024
     num_epochs = 50
-
-    source_train_loader, _ = DataloaderHelper.dataloader_10a(batch_size, 1.0, True, 0)
-    target_train_loader, _ = DataloaderHelper.dataloader_22(batch_size, 1.0, True, 1)
 
     model = DistanDANN().to(device)
 
     # load pretrained weights
-    model.g.load_state_dict(torch.load(f"../autodl-tmp/uda/{da_dataset}/sdidn_pretrain/" + f'pretrained_sdidn_encoder.pth'))
-    model.reconstructor.load_state_dict(torch.load(f"../autodl-tmp/uda/{da_dataset}/sdidn_pretrain/" + f'pretrained_sdidn_decoder.pth'))
+    model.g.load_state_dict(
+        torch.load(f"../autodl-tmp/uda/{da_dataset}/sdidn_pretrain/" + f'pretrained_sdidn_encoder.pth'))
+    model.reconstructor.load_state_dict(
+        torch.load(f"../autodl-tmp/uda/{da_dataset}/sdidn_pretrain/" + f'pretrained_sdidn_decoder.pth'))
 
     optimizer: optim.Optimizer = optim.Adam(params=model.parameters(), lr=1e-3, weight_decay=5e-3)
 
@@ -131,7 +129,7 @@ def run_train(da_dataset: str, model_name: str, seq: int):
 
             # 每50个batch打印一次进度
             if batch_idx % 20 == 0:
-                print(f'[Step2]Epoch [{epoch+1}/{num_epochs}], Batch [{batch_idx}/{min_len}], '
+                print(f'[Step2]Epoch [{epoch + 1}/{num_epochs}], Batch [{batch_idx}/{min_len}], '
                       f'Total Loss: {total_loss.item():.4f}, Class Loss: {class_loss.item():.4f}, '
                       f'domain adversial Loss: {domain_adversial_loss.item():.4f}, '
                       f'Orthogonal Loss: {orthogonal_loss.item():.4f}, '
@@ -148,7 +146,7 @@ def run_train(da_dataset: str, model_name: str, seq: int):
             print(f"new best acc:{best_acc}, weights saved")
             torch.save(model.state_dict(), f"../autodl-tmp/uda/{da_dataset}/{model_name}/" + f'{model_name}_{seq}.pth')
 
-        print(f'Epoch [{epoch+1}/{num_epochs}] - Validation Accuracy: {valid_accuracy:.2f}%')
+        print(f'Epoch [{epoch + 1}/{num_epochs}] - Validation Accuracy: {valid_accuracy:.2f}%')
 
 
 def validate_model(model, valid_loader, device):
@@ -177,5 +175,28 @@ def validate_model(model, valid_loader, device):
 
 
 if __name__ == "__main__":
-    for i in range(5):
-        run_train("16a_22", "sdidn", i)
+
+    batch_size = 2048
+
+    # source_train_loader, _ = DataloaderHelper.dataloader_10a(batch_size, 1.0, True, 0)
+    # target_train_loader, _ = DataloaderHelper.dataloader_22(batch_size, 1.0, True, 1)
+    # for i in range(3):
+    #     run_train(source_train_loader, target_train_loader, "16a_22", "sdidn", i)
+
+    # 22->16a
+    source_train_loader, _ = DataloaderHelper.dataloader_22(batch_size, 1.0, True, 0)
+    target_train_loader, _ = DataloaderHelper.dataloader_10a(batch_size, 1.0, True, 1)
+    for i in range(3):
+        run_train(source_train_loader, target_train_loader, "22_16a", "sdidn", i)
+
+    # 16c->22
+    source_train_loader, _ = DataloaderHelper.dataloader_04c(batch_size, 1.0, True, 0)
+    target_train_loader, _ = DataloaderHelper.dataloader_22(batch_size, 1.0, True, 1)
+    for i in range(3):
+        run_train(source_train_loader, target_train_loader, "16c_22", "sdidn", i)
+
+    # 22->16c
+    source_train_loader, _ = DataloaderHelper.dataloader_22(batch_size, 1.0, True, 0)
+    target_train_loader, _ = DataloaderHelper.dataloader_04c(batch_size, 1.0, True, 1)
+    for i in range(3):
+        run_train(source_train_loader, target_train_loader, "22_16c", "sdidn", i)

@@ -14,16 +14,13 @@ from module.loss import MinimumClassConfusionLoss
 warnings.filterwarnings('ignore')
 
 
-def run_train(da_dataset: str, model_name: str, seq: int):
+def run_train(source_train_loader, target_train_loader, da_dataset: str, model_name: str, seq: int):
     device: torch.device = get_device()
 
     set_seeds(seq)
 
-    batch_size = 512
     num_epochs = 50
 
-    source_train_loader, _ = DataloaderHelper.dataloader_10a(batch_size, 1.0)
-    target_train_loader, _ = DataloaderHelper.dataloader_22(batch_size, 1.0)
 
     model = MCC(num_classes=11).to(device)
 
@@ -103,5 +100,28 @@ def validate_model(model, valid_loader, device):
 
 
 if __name__ == "__main__":
-    for i in range(5):
-        run_train("16a_22", "mcc", i)
+
+    batch_size = 512
+
+    # source_train_loader, _ = DataloaderHelper.dataloader_10a(batch_size, 1.0)
+    # target_train_loader, _ = DataloaderHelper.dataloader_22(batch_size, 1.0)
+    # for i in range(3):
+    #     run_train(source_train_loader, target_train_loader, "16a_22", "mcc", i)
+
+    # 22->16a
+    source_train_loader, _ = DataloaderHelper.dataloader_22(batch_size, 1.0)
+    target_train_loader, _ = DataloaderHelper.dataloader_10a(batch_size, 1.0)
+    for i in range(3):
+        run_train(source_train_loader, target_train_loader, "22_16a", "mcc", i)
+
+    # 16c->22
+    source_train_loader, _ = DataloaderHelper.dataloader_04c(batch_size, 1.0)
+    target_train_loader, _ = DataloaderHelper.dataloader_22(batch_size, 1.0)
+    for i in range(3):
+        run_train(source_train_loader, target_train_loader, "16c_22", "mcc", i)
+
+    # 22->16c
+    source_train_loader, _ = DataloaderHelper.dataloader_22(batch_size, 1.0)
+    target_train_loader, _ = DataloaderHelper.dataloader_04c(batch_size, 1.0)
+    for i in range(3):
+        run_train(source_train_loader, target_train_loader, "22_16c", "mcc", i)

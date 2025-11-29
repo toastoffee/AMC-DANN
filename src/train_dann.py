@@ -13,15 +13,10 @@ from module.dann import DANN
 warnings.filterwarnings('ignore')
 
 
-def run_train(da_dataset: str, model_name: str, seq: int):
+def run_train(source_train_loader, target_train_loader, da_dataset: str, model_name: str, seq: int):
     set_seeds(seq)
 
     device: torch.device = get_device()
-
-    batch_size = 256
-
-    source_train_loader, _ = DataloaderHelper.dataloader_10a(batch_size, 1.0, True, 0)
-    target_train_loader, _ = DataloaderHelper.dataloader_22(batch_size, 1.0, True, 1)
 
     model = DANN().to(device)
 
@@ -31,6 +26,27 @@ def run_train(da_dataset: str, model_name: str, seq: int):
 
 
 if __name__ == "__main__":
-    for i in range(1, 5):
-        print(f"start seq-{i}")
-        run_train("16a_22", "dann", i)
+    batch_size = 256
+
+    # source_train_loader, _ = DataloaderHelper.dataloader_10a(batch_size, 1.0, True, 0)
+    # target_train_loader, _ = DataloaderHelper.dataloader_22(batch_size, 1.0, True, 1)
+    # for i in range(3):
+    #     run_train(source_train_loader, target_train_loader, "16a_22", "sdidn", i)
+
+    # 22->16a
+    source_train_loader, _ = DataloaderHelper.dataloader_22(batch_size, 1.0, True, 0)
+    target_train_loader, _ = DataloaderHelper.dataloader_10a(batch_size, 1.0, True, 1)
+    for i in range(3):
+        run_train(source_train_loader, target_train_loader, "22_16a", "dann", i)
+
+    # 16c->22
+    source_train_loader, _ = DataloaderHelper.dataloader_04c(batch_size, 1.0, True, 0)
+    target_train_loader, _ = DataloaderHelper.dataloader_22(batch_size, 1.0, True, 1)
+    for i in range(3):
+        run_train(source_train_loader, target_train_loader, "16c_22", "dann", i)
+
+    # 22->16c
+    source_train_loader, _ = DataloaderHelper.dataloader_22(batch_size, 1.0, True, 0)
+    target_train_loader, _ = DataloaderHelper.dataloader_04c(batch_size, 1.0, True, 1)
+    for i in range(3):
+        run_train(source_train_loader, target_train_loader, "22_16c", "dann", i)

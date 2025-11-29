@@ -208,7 +208,7 @@ class DistanDANN(nn.Module):
 
 class SDIDN_wrapper(nn.Module):
     def __init__(self, sdidn: DistanDANN):
-        super(sdidn, self).__init__()
+        super(SDIDN_wrapper, self).__init__()
         self.sdidn = sdidn
 
     def forward(self, x):

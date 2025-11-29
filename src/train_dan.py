@@ -81,7 +81,7 @@ def train_dan(
             if i % 20 == 0:
                 print(f"Epoch [{epoch + 1}/{num_epochs}] [Batch {i}/{min_len}] | Cls Loss: {cls_loss.item():.4f} | MMD Loss: {transfer_loss.item():.4f}")
 
-        acc = validate_model(model, target_train_loader, device)
+        acc = validate_model(model, target_loader, device)
         if acc > best_acc:
             best_acc = acc
             print(f"new best acc:{best_acc}, weights saved")
@@ -126,7 +126,20 @@ if __name__ == "__main__":
     num_epochs = 50
     num_k = 4
 
-    source_train_loader, _ = DataloaderHelper.dataloader_10a(batch_size, 1.0)
-    target_train_loader, _ = DataloaderHelper.dataloader_22(batch_size, 1.0)
+    loader16a, _ = DataloaderHelper.dataloader_10a(batch_size, 1.0)
+    loader22, _ = DataloaderHelper.dataloader_22(batch_size, 1.0)
+    loader16c, _ = DataloaderHelper.dataloader_04c(batch_size, 1.0)
 
-    train_dan(source_train_loader, target_train_loader, "16a_22", "dan", 0, num_epochs)
+    for i in range(3):
+        train_dan(loader16a, loader22, "16a_22", "dan", i, num_epochs)
+
+    for i in range(3):
+        train_dan(loader22, loader16a, "22_16a", "dan", i, num_epochs)
+
+    for i in range(3):
+        train_dan(loader16c, loader22, "16c_22", "dan", i, num_epochs)
+
+    for i in range(3):
+        train_dan(loader22, loader16c, "22_16c", "dan", i, num_epochs)
+
+

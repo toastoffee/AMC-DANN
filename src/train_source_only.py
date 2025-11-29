@@ -12,7 +12,7 @@ from train.train_classics import eval_and_get_acc
 warnings.filterwarnings('ignore')
 
 
-def run_train():
+def run_train(da_dataset: str, model_name: str, seq: int):
     device: torch.device = get_device()
 
     batch_size = 512
@@ -30,6 +30,7 @@ def run_train():
 
     criterion = nn.CrossEntropyLoss().to(device)
 
+    best_acc = 0
     for epoch in range(num_epochs):
         scheduler.step()
 
@@ -49,9 +50,10 @@ def run_train():
                 print(f'Epoch [{epoch+1}/{num_epochs}], Batch [{batch_idx}/{len(train_source_loader)}], '
                       f'Loss: {loss.item():.4f}, ')
 
-        if epoch % 5 == 0:
-            eval_and_get_acc(model, train_target_loader, criterion, device, "[target]")
+    torch.save(model.state_dict(), f"../autodl-tmp/uda/{da_dataset}/{model_name}/" + f'{model_name}_{seq}.pth')
+
 
 
 if __name__ == "__main__":
-    run_train()
+    for i in range(5):
+        run_train('16a_22', 'mcldnn', i)

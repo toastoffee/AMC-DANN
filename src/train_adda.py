@@ -197,20 +197,52 @@ if __name__ == "__main__":
 
     device: torch.device = get_device()
 
-    batch_size = 1024
+    batch_size = 512
     num_epochs = 20
 
     # 加载数据
-    source_train_loader, _ = DataloaderHelper.dataloader_10a(batch_size, 1.0)
-    target_train_loader, _ = DataloaderHelper.dataloader_22(batch_size, 1.0)
+    loader16a, _ = DataloaderHelper.dataloader_10a(batch_size, 1.0)
+    loader22, _ = DataloaderHelper.dataloader_22(batch_size, 1.0)
+    loader16c, _ = DataloaderHelper.dataloader_04c(batch_size, 1.0)
 
     # 训练ADDA模型
-    for i in range(5):
+    for i in range(3):
         print(f"start seq-{i}")
         trained_model = train_adda(
-            source_train_loader,
-            target_train_loader,
+            loader16a,
+            loader22,
             "16a_22", "adda", i,
             num_epochs=num_epochs,
             device=device
         )
+
+    for i in range(3):
+        print(f"start seq-{i}")
+        trained_model = train_adda(
+            loader22,
+            loader16a,
+            "22_16a", "adda", i,
+            num_epochs=num_epochs,
+            device=device
+        )
+
+    for i in range(3):
+        print(f"start seq-{i}")
+        trained_model = train_adda(
+            loader16c,
+            loader22,
+            "16c_22", "adda", i,
+            num_epochs=num_epochs,
+            device=device
+        )
+
+    for i in range(3):
+        print(f"start seq-{i}")
+        trained_model = train_adda(
+            loader22,
+            loader16c,
+            "22_16c", "adda", i,
+            num_epochs=num_epochs,
+            device=device
+        )
+
